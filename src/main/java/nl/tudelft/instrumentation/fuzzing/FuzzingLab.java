@@ -12,6 +12,10 @@ public class FuzzingLab {
         static int traceLength = 10;
         static boolean isFinished = false;
 
+        // Keep track of visited branches and total distance
+        static HashSet<Integer> visited = new HashSet<>();
+        static int totalDistance = 0;
+
         static void initialize(String[] inputSymbols){
                 // Initialise a random trace from the input symbols of the problem.
                 currentTrace = generateRandomTrace(inputSymbols);
@@ -22,7 +26,86 @@ public class FuzzingLab {
          */
         static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
                 // do something useful
-                System.out.println(condition.toString());
+
+                int distanceBranch = distanceCounter(condition, value);
+                visited.add(line_nr);
+                System.out.println(distanceBranch);
+                totalDistance += distanceBranch;
+
+        }
+
+        static int distanceCounter(MyVar condition, boolean value) {
+                int count = 0;
+
+                switch(condition.type) {
+                        case BOOL:
+                                count = value ? 0 : 1;
+                                break;
+                        case INT:
+                                count = condition.int_value;
+                                break;
+                        // case STRING:
+                        //         String strCondition = condition.str_value;
+                                
+
+                        //         break;
+                        case UNARY:
+                                int tempDist = distanceCounter(condition.left, value);
+                                count = unaryDistance(condition, tempDist);
+                                break;
+                        // case BINARY:
+                                
+                        default:
+                                System.out.printf("Error: Encountered unexpected Branch condition type %s%n", condition.type);
+                               
+                }
+
+                return count;
+        }
+
+        // Handle ! operator
+        static int unaryDistance(MyVar condition, int dist) {
+                if (condition.operator.equals('!')) {
+                        return normalizeDistance(1 - dist)
+                } else {
+                        return Integer.MIN_VALUE;
+                }
+        }
+
+        /**
+         * Normalize the distances of individual predicates before combining them.
+         * @param d the individual predicate.
+         * @return Normalized predicate.
+         */
+        static int normalizeDistance(int d) {
+                return d/(d+1);
+        }
+
+        // Levenshtein distance (slide 57 lecture 2)
+        static float editDistDP(String str1, String str2){
+                int m = str1.length(), n = str2.length();
+                int[][] table = new int[m + 1][n + 1];
+
+                for (int i = 0; i <= m; i++) {
+                        for (int j = 0; j <= n; j++) {
+                                // If first string is empty
+                                if (i == 0) { 
+                                        table[i][j] = j;
+                                // If second string is empty
+                                }else if (j == 0) {
+                                        table[i][j] = i;
+                                // If last characters are same
+                                }else if ((int) str1.charAt(i - 1) == (int) str2.charAt(j - 1)){
+                                        table[i][j] = table[i - 1][j - 1];
+                                // If last character is different
+                                } else {
+                                        table[i][j] = 1 + Math.min(Math.min(table[i][j - 1],    // cost of adding a character
+                                                                table[i - 1][j]),               // cost of removing a character
+                                                                table[i - 1][j - 1]);           // cost of replacing a character
+                                }
+                        }
+                }
+                return table[m][n];
         }
 
         /**
