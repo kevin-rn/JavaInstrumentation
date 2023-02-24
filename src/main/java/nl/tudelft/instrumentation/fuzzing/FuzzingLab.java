@@ -1,7 +1,6 @@
 package nl.tudelft.instrumentation.fuzzing;
 
 import java.util.*;
-import java.util.Random;
 
 /**
  * You should write your own solution using this class.
@@ -26,65 +25,52 @@ public class FuzzingLab {
          */
         static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
                 // do something useful
-                int distanceBranch = rootDistanceCounter(condition, value);
+                int distanceBranch = distanceCounter(condition, value, "");
                 visited.add(line_nr);
                 System.out.println(distanceBranch);
                 totalDistance += distanceBranch;
-
         }
 
         /**
-         * Method for calculating the top-level layer (root) of the branch condition.
-         * @param condition Branch condition as MyVar type.
-         * @param value Boolean value of the branch condition.
-         * @return Branch condition distance.
-         */
-        static int rootDistanceCounter(MyVar condition, boolean value) {
-                switch(condition.type) {
-                        case BOOL:
-                                return value ? 0 : 1;
-                        case UNARY:
-                                int tempDist = nodeDistanceCounter(condition.left, value, "");
-                                if (condition.operator.equals("!")) {
-                                        return normalizeDistance(1 - tempDist);
-                                } 
-                                break;
-                        case BINARY:
-                                String str1 = "", str2 = "";
-                                int expr1 = nodeDistanceCounter(condition.left, value, str1);
-                                int expr2 = nodeDistanceCounter(condition.right, value, str2);
-                                return binaryDistance(condition, expr1, expr2, str1, str2);                                
-                        default:
-                                System.out.printf("Error: Encountered unexpected Branch condition type %s%n", condition.type);
-                                break;
-                               
-                }
-                return Integer.MIN_VALUE;
-        }
-
-        /**
-         * Method for calculating the node level branch conditions.
+         * Helper method for calculating distance of the branch condition.
          * @param condition Branch condition as MyVar type.
          * @param value Boolean value of the branch condition.
          * @param str String value of the branch condition.
          * @return Branch condition distance.
          */
-        static int nodeDistanceCounter(MyVar condition, boolean value, String str) {
+        static int distanceCounter(MyVar condition, boolean value, String str) {
+                int dist = 0;
                 switch(condition.type) {
                         case BOOL:
-                                return value ? 0 : 1;
+                                dist = value ? 0 : 1;
+                                break;
                         case INT:
-                                return condition.int_value;
+                                dist = condition.int_value;
+                                break;
                         case STRING:
                                 str = condition.str_value;
-                                return Integer.MIN_VALUE;
+                                break;
                         case UNARY:
+                                if (condition.operator.equals("!")) {
+                                        dist = 1 - distanceCounter(condition.left, condition.left.value, "");
+                                } else {
+                                        dist = Integer.MIN_VALUE;
+                                        System.out.println("Error: Encountered problem with Unary operator " + condition.operator);
+                                }
+                                break;
                         case BINARY:
-                                return rootDistanceCounter(condition, value) // Reuse method for calculating unary and binary conditions
+                                String str1 = "", str2 = "";
+                                int expr1 = distanceCounter(condition.left, condition.left.value, str1);
+                                int expr2 = distanceCounter(condition.right, condition.right.value, str2);
+                                dist = binaryDistance(condition, expr1, expr2, str1, str2);
+                                break;
                         default:
-                                System.out.printf("Error: Encountered unexpected Branch condition type %s%n", condition.type);
-                                return Integer.MIN_VALUE;
+                                dist =  Integer.MIN_VALUE;
+                                System.out.println("Error: Encountered unexpected Branch condition type " + condition.type);
+                                break;
+                               
                 }
+                return normalizeDistance(dist);
         }
 
         /**
@@ -97,44 +83,48 @@ public class FuzzingLab {
          * @return Branch condition distance.
          */
         static int binaryDistance(MyVar condition, int expr1, int expr2, String str1, String str2) {
-                int dist = Integer.MIN_VALUE;
+                int dist = 0;
                 switch(condition.operator){
+                        case "|":
                         case "||": 
                                 dist = Math.min(expr1, expr2);
-                                return normalizeDistance(dist);
+                                break;
+                        case "&":
                         case "&&":
-                                return normalizeDistance(expr1 + expr2);
+                                dist = expr1 + expr2;
+                                break;
                         case "==": 
                                 if(condition.type == TypeEnum.STRING || !str1.isEmpty() || !str2.isEmpty()) {
-                                        int dst = editDistDP(str1, str2);
-                                        return normalizeDistance(dst);
+                                        dist = editDistDP(str1, str2, str1.length(), str2.length());
                                 } else {
-                                        return normalizeDistance(Math.abs(expr1 - expr2));
+                                        dist = Math.abs(expr1 - expr2);
                                 }
+                                break;
                         case "!=": 
                                 if(condition.type == TypeEnum.STRING) {
                                         dist = !str1.equals(str2) ? 0 : 1;
                                 } else {
                                         dist = (expr1 != expr2) ? 0 : 1;
                                 }
-                                return normalizeDistance(dist);
+                                break;
                         case "<": 
                                 dist = (expr1 < expr2) ? 0 : expr1 - expr2 + 1;
-                                return normalizeDistance(dist);
+                                break;
                         case "<=": 
                                 dist = (expr1 <= expr2) ? 0 : expr1 - expr2;
-                                return normalizeDistance(dist);
+                                break;
                         case ">":
                                 dist = (expr1 > expr2) ? 0 : expr2 - expr1 + 1;
-                                return normalizeDistance(dist);
+                                break;
                         case ">=":
                                 dist = (expr1 > expr2) ? 0 : expr2 - expr1;
-                                return normalizeDistance(dist);
+                                break;
                         default:
-                                System.err.printf("Error: Encountered unexpected binary branch condition type %s%n " + condition.operator);
+                                dist = Integer.MIN_VALUE;
+                                System.err.println("Error: Encountered unexpected binary branch condition type " + condition.operator);
                                 break;
                 }
-                return dist;
+                return normalizeDistance(dist);
         }
 
         /**
@@ -152,8 +142,7 @@ public class FuzzingLab {
          * @param str2 Second string to compute from.
          * @return Distance between two strings.
          */
-        static int editDistDP(String str1, String str2){
-                int m = str1.length(), n = str2.length();
+        static int editDistDP(String str1, String str2, int m, int n){
                 int[][] table = new int[m + 1][n + 1];
 
                 for (int i = 0; i <= m; i++) {
@@ -183,7 +172,7 @@ public class FuzzingLab {
          * @param inputSymbols the inputSymbols to fuzz from.
          * @return a fuzzed sequence
          */
-        static List<String> fuzz(String[] inputSymbols){
+        static List<String> fuzz(String[] inputSymbols, List<String> optimalTrace){
                 /*
                  * Add here your code for fuzzing a new sequence for the RERS problem.
                  * You can guide your fuzzer to fuzz "smart" input sequences to cover
@@ -220,6 +209,7 @@ public class FuzzingLab {
                                 e.printStackTrace();
                         }
                 }
+
         }
 
         /**
