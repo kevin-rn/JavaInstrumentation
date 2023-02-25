@@ -85,85 +85,76 @@ public class MyVar {
     }
 
 
-    public int distance(MyVar other) {
-        int res = 0;
-
-        if (this.type != other.type) {
-            throw new IllegalArgumentException("Not compatible types");
-        }
-
+    public double branchDistance() {
+        double dist = 0;
 
         switch (this.type) {
             case BOOL:
-                if (this.value == other.value) {
-                    res = 0;
-                } else {
-                    res = 1;
-                }
+                dist = value ? 0 : 1;
                 break;
             case INT:
-                if (this.int_value == other.int_value) {
-                    res = 0;
-                } else {
-                    res = Math.abs(this.int_value - other.int_value);
-                }
+                dist = int_value;
                 break;
             case STRING:
-                res = editDistDP(this.str_value, other.str_value, this.str_value.length(), other.str_value.length());
+                //strings should be compared with equals or comapreTo
+                dist = str_value.length();
                 break;
             case UNARY:
-                // Negation as in slide (the only unary)
-                res = 1 - other.distance(left);
+                if (operator.equals("!")) {
+                    dist = 1 - left.branchDistance();
+                }
                 break;
             case BINARY:
                 switch (operator) {
+                    case "==":
+                        dist = Math.abs(left.branchDistance() - right.branchDistance());
+                        break;
+                    case "!=":
+                        dist = left.branchDistance() == right.branchDistance() ? 0 : 1;
+                        break;
+                    case "<": {
+                        double diff = left.branchDistance() - right.branchDistance();
+                        dist = diff < 0 ? K - diff : 0;
+                        break;
+                    }
+                    case "<=": {
+                        double diff = left.branchDistance() - right.branchDistance();
+                        dist = diff <= 0 ? -diff : 0;
+                        break;
+                    }
+                    case ">": {
+                        double diff = left.branchDistance() - right.branchDistance();
+                        dist = diff > 0 ? K - diff : 0;
+                        break;
+                    }
+                    case ">=": {
+                        double diff = left.branchDistance() - right.branchDistance();
+                        dist = Math.max(diff, 0);
+                        break;
+                    }
                     case "&":
                     case "&&":
-                        res = left.distance(other.left) + right.distance(other.right);
+                        dist = left.branchDistance() + right.branchDistance();
                         break;
                     case "|":
                     case "||":
-                        res = Math.min(left.distance(other.left), right.distance(other.right));
-                        break;
-                    case "==":
-                        res = Math.abs(left.distance(other.left) - right.distance(other.right));
-                        break;
-                    case "!=":
-                        if (left.distance(other.left) != right.distance(other.right)) {
-                            res = 1;
-                        }
-                        break;
-                    case "<":
-                        if (this.left.distance(other.left) >= this.right.distance(other.right)) {
-                            res = this.left.distance(other.left) - this.right.distance(other.right) + K;
-                        }
-                        break;
-                    case "<=":
-                        if (this.left.distance(other.left) > this.right.distance(other.right)) {
-                            res = this.left.distance(other.left) - this.right.distance(other.right);
-                        }
-                        break;
-                    case ">":
-                        if (this.left.distance(other.left) <= this.right.distance(other.right)) {
-                            res = this.right.distance(other.right) - this.left.distance(other.left) + K;
-                        }
-                        break;
-                    case ">=":
-                        if (this.left.distance(other.left) < this.right.distance(other.right)) {
-                            res = this.right.distance(other.right) - this.left.distance(other.left);
-                        }
+                        dist = Math.min(left.branchDistance(), right.branchDistance());
                         break;
                     case "^":
-                        //TODO: HANDLE XOR?
-                        res = 0;
+                        double d1 = left.branchDistance() + (1 - right.branchDistance());
+                        double d2 = right.branchDistance() + (1 - left.branchDistance());
+                        dist = Math.min(d1, d2);
                         break;
                 }
                 break;
+            default:
+                break;
         }
-        return normalizeDistance(res);
+        
+        return normalizeDistance(dist);
     }
 
-    static int normalizeDistance(int d) {
+    static double normalizeDistance(double d) {
         return d / (d + 1);
     }
 

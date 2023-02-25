@@ -13,48 +13,78 @@ public class FuzzingLab {
     static int traceLength = 10;
     static boolean isFinished = false;
 
+    static Map<Integer, Map<MyVar, Boolean>> visited = new HashMap<>();
+    static double totalDistance = Double.MAX_VALUE;
+
+    static Set<String> output = new HashSet<>();
+    static Set<String> traces = new HashSet<>();
+
+
     static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
         currentTrace = generateRandomTrace(inputSymbols);
     }
 
-    static Map<Integer, Map<MyVar,Boolean>> visited = new HashMap<>();
-
     /**
      * TODO: WRITE your solution that specifies what should happen when a new branch has been found.
      */
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
+        //System.out.println("CONDITION " + condition + "Value: " + value + " line nr : " + line_nr);
 
-        System.out.println("CONDITION " + condition + "Value: " + value + " line nr : " + line_nr);
+        if (visited.containsKey(line_nr)) {
+            Map<MyVar, Boolean> branches = visited.get(line_nr);
+            branches.put(condition, value);
 
-            if (visited.containsKey(line_nr)) {
-                    Map<MyVar, Boolean> branches = visited.get(line_nr);
-                    branches.put(condition, value);
-
-                    System.out.println("encountered " + branches);
-            } else {
-                    Map<MyVar, Boolean> branches = new HashMap<>();
-                    branches.put(condition, value);
-                    visited.put(line_nr, branches);
-            }
+            //System.out.println("encountered " + branches);
+        } else {
+            Map<MyVar, Boolean> branches = new HashMap<>();
+            branches.put(condition, value);
+            visited.put(line_nr, branches);
+        }
     }
 
+
     /**
-     * TODO
      * Method for fuzzing new inputs for a program.
      *
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
-    static List<String> fuzz(String[] inputSymbols) {
-                /*
-                TODO
-                 * Add here your code for fuzzing a new sequence for the RERS problem.
-                 * You can guide your fuzzer to fuzz "smart" input sequences to cover
-                 * more branches. Right now we just generate a complete random sequence
-                 * using the given input symbols. Please change it to your own code.
-                 */
-        return generateRandomTrace(inputSymbols);
+    static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
+        List<String> currentBestTrace = new ArrayList<>(currentTrace);
+        double currentBestDistance = totalDistance;
+        boolean betterTraceFound = true;
+
+        while (betterTraceFound) {
+            betterTraceFound = false;
+
+            //mutate trace
+            for (int i = 0; i < traceLength; i++) {
+                List<String> newTrace = new ArrayList<>(currentBestTrace);
+                newTrace.set(i, inputSymbols[r.nextInt(inputSymbols.length)]);
+
+                double newDistance = 0;
+
+                for (Map<MyVar, Boolean> branches : visited.values()) {
+                    newDistance = branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
+                }
+
+                if (newDistance < currentBestDistance) {
+                    currentBestTrace = newTrace;
+                    currentBestDistance = newDistance;
+                    betterTraceFound = true;
+                    break;
+                }
+            }
+        }
+
+
+        traces.add(currentBestTrace.toString());
+        System.out.println("TRACE" + traces);
+        // Update the current trace and total distance
+        currentTrace = currentBestTrace;
+        totalDistance = currentBestDistance;
+        return currentTrace;
     }
 
     /**
@@ -75,10 +105,11 @@ public class FuzzingLab {
         initialize(DistanceTracker.inputSymbols);
         DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
-        // Place here your code to guide your fuzzer with its search.
+        // TODO Place here your code to guide your fuzzer with its search.
         while (!isFinished) {
-            // Do things!
             try {
+                visited.clear();
+                DistanceTracker.runNextFuzzedSequence(fuzz(DistanceTracker.inputSymbols).toArray(new String[0]));
                 System.out.println("Woohoo, looping!");
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
@@ -95,6 +126,7 @@ public class FuzzingLab {
      * @param out the string that has been outputted in the standard out.
      */
     public static void output(String out) {
-        System.out.println(out);
+        output.add(out);
+        System.out.println("OUTPUT " + output);
     }
 }
