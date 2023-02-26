@@ -11,10 +11,11 @@ public class FuzzingLab {
     static List<String> currentTrace;
     static int traceLength = 10;
     static boolean isFinished = false;
-    static final int K = 1;
+    static final double K = 1.0;
 
     static Map<Integer, Map<MyVar, Boolean>> visited = new HashMap<>();
-    static double totalDistance = Double.MAX_VALUE;
+    static double totalDistance = 0.0;
+    static double bestDistance = Double.MAX_VALUE;
 
     static Set<String> output = new HashSet<>();
     static Set<String> traces = new HashSet<>();
@@ -47,99 +48,107 @@ public class FuzzingLab {
     }
 
       /**
-         * Helper method for calculating distance of the branch condition.
+         * Method for calculating distance of the branch condition.
          * @param condition Branch condition as MyVar type.
-         * @param value Boolean value of the branch condition.
-         * @param str String value of the branch condition.
          * @return Branch condition distance.
          */
-        static int distanceCounter(MyVar condition, boolean value, String str) {
-            int dist = 0;
+        static double branchDistance(MyVar condition) {
             switch(condition.type) {
                     case BOOL:
-                            dist = value ? 0 : 1;
-                            break;
+                            return condition.value ? 0.0 : 1.0;
                     case INT:
-                            dist = condition.int_value;
-                            break;
+                            return condition.int_value;
                     case STRING:
-                            str = condition.str_value;
-                            break;
+                            throw new RuntimeException("Error: Single string is an invalid branch condition");
                     case UNARY:
                             if (condition.operator.equals("!")) {
-                                    dist = 1 - distanceCounter(condition.left, condition.left.value, "");
+                                    return 1.0 - normalizeDistance(branchDistance(condition.left));
                             } else {
-                                    dist = Integer.MIN_VALUE;
                                     System.out.println("Error: Encountered problem with Unary operator " + condition.operator);
+                                    return -1.0;
                             }
-                            break;
                     case BINARY:
-                            String str1 = "", str2 = "";
-                            int expr1 = distanceCounter(condition.left, condition.left.value, str1);
-                            int expr2 = distanceCounter(condition.right, condition.right.value, str2);
-                            dist = binaryDistance(condition, expr1, expr2, str1, str2);
-                            break;
+                            return binaryDistance(condition, condition.left, condition.right);
                     default:
-                            dist =  Integer.MIN_VALUE;
                             System.out.println("Error: Encountered unexpected Branch condition type " + condition.type);
-                            break;
-
+                            throw new RuntimeException("Error: Encountered unexpected Branch condition type " + condition.type);
             }
-            return normalizeDistance(dist);
     }
 
     /**
-     * Method for calculating the binary type branch conditions.
+     * Helper method for calculating the binary type branch conditions.
      * @param condition Branch condition as MyVar type.
-     * @param expr1 Left-hand expression from the operator of the conditon.
-     * @param expr2 Right-hand expression from the operator of the conditon.
-     * @param str1 Left-hand string expression.
-     * @param str2 Right-hand string expression.
+     * @param left Left-hand condition of the conditon.
+     * @param right Right-hand condition of the conditon.
      * @return Branch condition distance.
      */
-    static int binaryDistance(MyVar condition, int expr1, int expr2, String str1, String str2) {
-            int dist = 0;
+    static double binaryDistance(MyVar condition, MyVar left, MyVar right) {
             switch(condition.operator){
                     case "|":
                     case "||": 
-                            dist = Math.min(expr1, expr2);
-                            break;
+                            return normalizeDistance(branchDistance(left)) + normalizeDistance(branchDistance(right));
                     case "&":
                     case "&&":
-                            dist = expr1 + expr2;
-                            break;
+                            return Math.min(normalizeDistance(branchDistance(left)), normalizeDistance(branchDistance(right)));
                     case "==": 
-                            if(condition.type == TypeEnum.STRING || !str1.isEmpty() || !str2.isEmpty()) {
-                                    dist = editDistDP(str1, str2, str1.length(), str2.length());
-                            } else {
-                                    dist = Math.abs(expr1 - expr2);
-                            }
-                            break;
+                        switch (left.type) {
+                                case INT:
+                                        return Math.abs(left.int_value - right.int_value);
+                                case BOOL:
+                                        return (left.value == right.value) ? 0.0 : 1.0;
+                                case STRING:
+                                        return editDistDP(left.str_value, right.str_value);
+                                default:
+                                        throw new RuntimeException("Error: binary condition == encountered incompatible type: " + condition);
+                        }
                     case "!=": 
-                            if(condition.type == TypeEnum.STRING) {
-                                    dist = !str1.equals(str2) ? 0 : 1;
-                            } else {
-                                    dist = (expr1 != expr2) ? 0 : 1;
-                            }
-                            break;
+                        switch (left.type) {
+                                case INT:
+                                        return (left.int_value != right.int_value) ? 0.0 : 1.0;
+                                case BOOL:
+                                        return (left.value != right.value) ? 0.0 : 1.0;
+                                case STRING:
+                                        return (left.str_value != right.str_value) ? 0.0 : 1.0;
+                                default:
+                                        throw new RuntimeException("Error: binary condition != encountered incompatible type: " + condition);
+                        }
                     case "<": 
-                            dist = (expr1 < expr2) ? 0 : expr1 - expr2 + K;
-                            break;
+                        switch (left.type) {
+                                case INT:
+                                        return (left.int_value < right.int_value) ? 0.0 : left.int_value - right.int_value + K;
+                                default:
+                                        throw new RuntimeException("Error: binary condition < encountered incompatible type: " + condition);
+                        }
                     case "<=": 
-                            dist = (expr1 <= expr2) ? 0 : expr1 - expr2;
-                            break;
+                        switch (left.type) {
+                                case INT:
+                                        return (left.int_value <= right.int_value) ? 0.0 : left.int_value - right.int_value;
+                                default:
+                                        throw new RuntimeException("Error: binary condition <= encountered incompatible type: " + condition);
+                        }
                     case ">":
-                            dist = (expr1 > expr2) ? 0 : expr2 - expr1 + K;
-                            break;
+                        switch (left.type) {
+                                case INT:
+                                        return (left.int_value > right.int_value) ? 0.0 : right.int_value - left.int_value + K;
+                                default:
+                                        throw new RuntimeException("Error: binary condition > encountered incompatible type: " + condition);
+                        }
                     case ">=":
-                            dist = (expr1 > expr2) ? 0 : expr2 - expr1;
-                            break;
+                        switch (left.type) {
+                                case INT:
+                                        return (left.int_value >= right.int_value) ? 0.0 : right.int_value - left.int_value;
+                                default:
+                                        throw new RuntimeException("Error: binary condition >= encountered incompatible type: " + condition);
+                        }
+                    case "^":
+                    case "XOR":
+                            double lefthand = normalizeDistance(branchDistance(left)) + normalizeDistance(branchDistance(new MyVar(right, "!")));
+                            double righthand = normalizeDistance(branchDistance(right)) + normalizeDistance(branchDistance(new MyVar(left, "!")));
+                            return Math.min(lefthand, righthand);
                     default:
-                            dist = Integer.MIN_VALUE;
                             System.err.println("Error: Encountered unexpected binary branch condition type " + condition.operator);
-                            break;
+                            throw new RuntimeException("Error: Encountered unexpected binary branch operator: " + condition.operator);
             }
-            return normalizeDistance(dist);
     }
 
     /**
@@ -147,8 +156,8 @@ public class FuzzingLab {
      * @param d the individual predicate.
      * @return Normalized predicate.
      */
-    static int normalizeDistance(int d) {
-            return d/(d+1);
+    static double normalizeDistance(double d) {
+            return d / (d + 1);
     }
 
     /**
@@ -157,7 +166,8 @@ public class FuzzingLab {
      * @param str2 Second string to compute from.
      * @return Distance between two strings.
      */
-    static int editDistDP(String str1, String str2, int m, int n){
+    static int editDistDP(String str1, String str2){
+            int m = str1.length(), n = str2.length();
             int[][] table = new int[m + 1][n + 1];
 
             for (int i = 0; i <= m; i++) {
@@ -190,7 +200,7 @@ public class FuzzingLab {
      */
     static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
         List<String> currentBestTrace = new ArrayList<>(currentTrace);
-        double currentBestDistance = totalDistance;
+        double currentBestDistance = bestDistance;
         boolean betterTraceFound = true;
         int maxIter = 100;
 
@@ -218,7 +228,9 @@ public class FuzzingLab {
                 double newDistance = 0;
 
                 for (Map<MyVar, Boolean> branches : visited.values()) {
-                    newDistance = branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
+                    // newDistance = branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
+                    newDistance = branches.keySet().stream().map(branch -> branchDistance(branch)).reduce(0., Double::sum);
+
                 }
 
                 if (newDistance < currentBestDistance) {
@@ -235,7 +247,7 @@ public class FuzzingLab {
         System.out.println("TRACE" + traces);
         // Update the current trace and total distance
         currentTrace = currentBestTrace;
-        totalDistance = currentBestDistance;
+        bestDistance = currentBestDistance;
         return currentTrace;
     }
 
