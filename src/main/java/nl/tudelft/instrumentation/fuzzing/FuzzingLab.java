@@ -26,7 +26,10 @@ public class FuzzingLab {
     }
 
     /**
-     * TODO: WRITE your solution that specifies what should happen when a new branch has been found.
+     * Method for handling what to do when a new branch has been found.
+     * @param condition Representation of a (near) binary tree of MyVar variables. 
+     * @param value Boolean value of the condition.
+     * @param line_nr Line number of the if-statement in the original Java file
      */
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
         //System.out.println("CONDITION " + condition + "Value: " + value + " line nr : " + line_nr);
@@ -119,7 +122,6 @@ public class FuzzingLab {
         initialize(DistanceTracker.inputSymbols);
         DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
-        // TODO Place here your code to guide your fuzzer with its search.
         while (!isFinished) {
             try {
                 visited.clear();
