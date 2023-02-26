@@ -273,6 +273,8 @@ public class FuzzingLab {
             try {
                 visited.clear();
                 DistanceTracker.runNextFuzzedSequence(fuzz(DistanceTracker.inputSymbols).toArray(new String[0]));
+                System.out.println("Woohoo, looping!");
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
