@@ -54,14 +54,28 @@ public class FuzzingLab {
         List<String> currentBestTrace = new ArrayList<>(currentTrace);
         double currentBestDistance = totalDistance;
         boolean betterTraceFound = true;
+        int maxIter = 100;
 
         while (betterTraceFound) {
+
+            if (maxIter-- <= 0) {
+                break;
+            }
+
             betterTraceFound = false;
 
             //mutate trace
             for (int i = 0; i < traceLength; i++) {
                 List<String> newTrace = new ArrayList<>(currentBestTrace);
                 newTrace.set(i, inputSymbols[r.nextInt(inputSymbols.length)]);
+                String traceString = String.join("", newTrace);
+
+                if (traces.contains(traceString)) {
+                    continue;
+                }
+
+                traces.add(traceString);
+
 
                 double newDistance = 0;
 
@@ -119,13 +133,16 @@ public class FuzzingLab {
     }
 
     /**
-     * TODO
      * Method that is used for catching the output from standard out.
      * You should write your own logic here.
      *
      * @param out the string that has been outputted in the standard out.
      */
     public static void output(String out) {
+        if (out.contains("Current state has no transition for this input!")) {
+            initialize(DistanceTracker.inputSymbols);
+        }
+
         output.add(out);
         System.out.println("OUTPUT " + output);
     }
