@@ -52,26 +52,32 @@ public class FuzzingLab {
          * @return Branch condition distance.
          */
         static double branchDistance(MyVar condition) {
+            double dist = 0.0;
             switch(condition.type) {
                     case BOOL:
-                            return condition.value ? 0.0 : 1.0;
+                            dist = condition.value ? 0.0 : 1.0;
+                            break;
                     case INT:
-                            return condition.int_value;
+                            dist = condition.int_value;
+                            break;
                     case STRING:
                             throw new RuntimeException("Error: Single string is an invalid branch condition");
                     case UNARY:
                             if (condition.operator.equals("!")) {
-                                    return 1.0 - normalizeDistance(branchDistance(condition.left));
+                                    dist = 1.0 - normalizeDistance(branchDistance(condition.left));
                             } else {
                                     System.out.println("Error: Encountered problem with Unary operator " + condition.operator);
-                                    return -1.0;
+                                    dist = -1.0;
                             }
+                            break;
                     case BINARY:
-                            return binaryDistance(condition, condition.left, condition.right);
+                            dist = binaryDistance(condition, condition.left, condition.right);
+                            break;
                     default:
                             System.out.println("Error: Encountered unexpected Branch condition type " + condition.type);
                             throw new RuntimeException("Error: Encountered unexpected Branch condition type " + condition.type);
             }
+        return normalizeDistance(dist);
     }
 
     /**
@@ -82,21 +88,19 @@ public class FuzzingLab {
      * @return Branch condition distance.
      */
     static double binaryDistance(MyVar condition, MyVar left, MyVar right) {
+            double dist = 0.0;
             switch(condition.operator){
-                    case "|":
-                    case "||": 
-                            return normalizeDistance(branchDistance(left)) + normalizeDistance(branchDistance(right));
-                    case "&":
-                    case "&&":
-                            return Math.min(normalizeDistance(branchDistance(left)), normalizeDistance(branchDistance(right)));
                     case "==": 
                         switch (left.type) {
                                 case INT:
-                                        return Math.abs(branchDistance(left) - branchDistance(right));
+                                        dist = Math.abs(branchDistance(left) - branchDistance(right));
+                                        break;
                                 case BOOL:
-                                        return (branchDistance(left) == branchDistance(right)) ? 0.0 : 1.0;
+                                        dist = (branchDistance(left) == branchDistance(right)) ? 0.0 : 1.0;
+                                        break;
                                 case STRING:
-                                        return editDistDP(left.str_value, right.str_value);
+                                        dist = editDistDP(left.str_value, right.str_value);
+                                        break;
                                 default:
                                         throw new RuntimeException("Error: binary condition == encountered incompatible type: " + condition);
                         }
@@ -104,9 +108,11 @@ public class FuzzingLab {
                         switch (left.type) {
                                 case INT:
                                 case BOOL:
-                                        return (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
+                                        dist = (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
+                                        break;
                                 case STRING:
-                                        return (!left.str_value.equals(right.str_value)) ? 0.0 : 1.0;
+                                        dist = (!left.str_value.equals(right.str_value)) ? 0.0 : 1.0;
+                                        break;
                                 default:
                                         throw new RuntimeException("Error: binary condition != encountered incompatible type: " + condition);
                         }
@@ -114,7 +120,8 @@ public class FuzzingLab {
                         switch (left.type) {
                                 case INT:
                                         double l = branchDistance(left), r = branchDistance(right);
-                                        return (l < r) ? 0.0 : l - r + K;
+                                        dist = (l < r) ? 0.0 : l - r + K;
+                                        break;
                                 default:
                                         throw new RuntimeException("Error: binary condition < encountered incompatible type: " + condition);
                         }
@@ -122,7 +129,8 @@ public class FuzzingLab {
                         switch (left.type) {
                                 case INT:
                                         double l = branchDistance(left), r = branchDistance(right);
-                                        return (l <= r) ? 0.0 : l - r;
+                                        dist = (l <= r) ? 0.0 : l - r;
+                                        break;
                                 default:
                                         throw new RuntimeException("Error: binary condition <= encountered incompatible type: " + condition);
                         }
@@ -130,7 +138,8 @@ public class FuzzingLab {
                         switch (left.type) {
                                 case INT:
                                         double l = branchDistance(left), r = branchDistance(right);
-                                        return (l > r) ? 0.0 : r - l + K;
+                                        dist = (l > r) ? 0.0 : r - l + K;
+                                        break;
                                 default:
                                         throw new RuntimeException("Error: binary condition > encountered incompatible type: " + condition);
                         }
@@ -138,19 +147,29 @@ public class FuzzingLab {
                         switch (left.type) {
                                 case INT:
                                         double l = branchDistance(left), r = branchDistance(right);
-                                        return (l >= r) ? 0.0 : r - l;
+                                        dist = (l >= r) ? 0.0 : r - l;
+                                        break;
                                 default:
                                         throw new RuntimeException("Error: binary condition >= encountered incompatible type: " + condition);
                         }
+                    case "&":
+                    case "&&":
+                            dist = branchDistance(left) + branchDistance(right);
+                            break;
+                    case "|":
+                    case "||": 
+                            dist = Math.min(branchDistance(left), branchDistance(right));
+                            break;
                     case "^":
                     case "XOR":
-                            double lefthand = normalizeDistance(branchDistance(left)) + normalizeDistance(branchDistance(new MyVar(right, "!")));
-                            double righthand = normalizeDistance(branchDistance(right)) + normalizeDistance(branchDistance(new MyVar(left, "!")));
-                            return Math.min(lefthand, righthand);
+                            double lefthand = branchDistance(left), righthand = branchDistance(right);
+                            dist = Math.min(lefthand + (1-righthand), righthand + (1-lefthand));
+                            break;
                     default:
                             System.err.println("Error: Encountered unexpected binary branch condition type " + condition.operator);
                             throw new RuntimeException("Error: Encountered unexpected binary branch operator: " + condition.operator);
             }
+            return normalizeDistance(dist);
         }
 
     /**
