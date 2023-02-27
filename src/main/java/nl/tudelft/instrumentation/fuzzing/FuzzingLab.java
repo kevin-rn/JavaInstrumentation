@@ -14,8 +14,7 @@ public class FuzzingLab {
     static final double K = 1.0;
 
     static Map<Integer, Map<MyVar, Boolean>> visited = new HashMap<>();
-    static double totalDistance = 0.0;
-    static double bestDistance = Double.MAX_VALUE;
+    static double totalDistance = Double.MAX_VALUE;
 
     static Set<String> output = new HashSet<>();
     static Set<String> traces = new HashSet<>();
@@ -93,9 +92,9 @@ public class FuzzingLab {
                     case "==": 
                         switch (left.type) {
                                 case INT:
-                                        return Math.abs(left.int_value - right.int_value);
+                                        return Math.abs(branchDistance(left) - branchDistance(right));
                                 case BOOL:
-                                        return (left.value == right.value) ? 0.0 : 1.0;
+                                        return (branchDistance(left) == branchDistance(right)) ? 0.0 : 1.0;
                                 case STRING:
                                         return editDistDP(left.str_value, right.str_value);
                                 default:
@@ -104,39 +103,42 @@ public class FuzzingLab {
                     case "!=": 
                         switch (left.type) {
                                 case INT:
-                                        return (left.int_value != right.int_value) ? 0.0 : 1.0;
                                 case BOOL:
-                                        return (left.value != right.value) ? 0.0 : 1.0;
+                                        return (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
                                 case STRING:
-                                        return (left.str_value != right.str_value) ? 0.0 : 1.0;
+                                        return (!left.str_value.equals(right.str_value)) ? 0.0 : 1.0;
                                 default:
                                         throw new RuntimeException("Error: binary condition != encountered incompatible type: " + condition);
                         }
                     case "<": 
                         switch (left.type) {
                                 case INT:
-                                        return (left.int_value < right.int_value) ? 0.0 : left.int_value - right.int_value + K;
+                                        double l = branchDistance(left), r = branchDistance(right);
+                                        return (l < r) ? 0.0 : l - r + K;
                                 default:
                                         throw new RuntimeException("Error: binary condition < encountered incompatible type: " + condition);
                         }
                     case "<=": 
                         switch (left.type) {
                                 case INT:
-                                        return (left.int_value <= right.int_value) ? 0.0 : left.int_value - right.int_value;
+                                        double l = branchDistance(left), r = branchDistance(right);
+                                        return (l <= r) ? 0.0 : l - r;
                                 default:
                                         throw new RuntimeException("Error: binary condition <= encountered incompatible type: " + condition);
                         }
                     case ">":
                         switch (left.type) {
                                 case INT:
-                                        return (left.int_value > right.int_value) ? 0.0 : right.int_value - left.int_value + K;
+                                        double l = branchDistance(left), r = branchDistance(right);
+                                        return (l > r) ? 0.0 : r - l + K;
                                 default:
                                         throw new RuntimeException("Error: binary condition > encountered incompatible type: " + condition);
                         }
                     case ">=":
                         switch (left.type) {
                                 case INT:
-                                        return (left.int_value >= right.int_value) ? 0.0 : right.int_value - left.int_value;
+                                        double l = branchDistance(left), r = branchDistance(right);
+                                        return (l >= r) ? 0.0 : r - l;
                                 default:
                                         throw new RuntimeException("Error: binary condition >= encountered incompatible type: " + condition);
                         }
@@ -149,7 +151,7 @@ public class FuzzingLab {
                             System.err.println("Error: Encountered unexpected binary branch condition type " + condition.operator);
                             throw new RuntimeException("Error: Encountered unexpected binary branch operator: " + condition.operator);
             }
-    }
+        }
 
     /**
      * Normalize the distances of individual predicates before combining them.
@@ -200,7 +202,7 @@ public class FuzzingLab {
      */
     static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
         List<String> currentBestTrace = new ArrayList<>(currentTrace);
-        double currentBestDistance = bestDistance;
+        double currentBestDistance = totalDistance;
         boolean betterTraceFound = true;
         int maxIter = 100;
 
@@ -228,7 +230,7 @@ public class FuzzingLab {
                 double newDistance = 0;
 
                 for (Map<MyVar, Boolean> branches : visited.values()) {
-                    // newDistance = branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
+                    // newDistance += branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
                     newDistance += branches.keySet().stream().map(branch -> branchDistance(branch)).reduce(0., Double::sum);
                 }
 
@@ -246,7 +248,7 @@ public class FuzzingLab {
         System.out.println("TRACE" + traces);
         // Update the current trace and total distance
         currentTrace = currentBestTrace;
-        bestDistance = currentBestDistance;
+        totalDistance = currentBestDistance;
         return currentTrace;
     }
 
