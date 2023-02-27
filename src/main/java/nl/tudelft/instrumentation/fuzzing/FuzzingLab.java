@@ -229,8 +229,7 @@ public class FuzzingLab {
 
                 for (Map<MyVar, Boolean> branches : visited.values()) {
                     // newDistance = branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
-                    newDistance = branches.keySet().stream().map(branch -> branchDistance(branch)).reduce(0., Double::sum);
-
+                    newDistance += branches.keySet().stream().map(branch -> branchDistance(branch)).reduce(0., Double::sum);
                 }
 
                 if (newDistance < currentBestDistance) {
