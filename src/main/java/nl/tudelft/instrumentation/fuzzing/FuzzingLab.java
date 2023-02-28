@@ -24,7 +24,7 @@ public class FuzzingLab {
 
     static Map<String, Integer> results = new HashMap<>();
 
-    static int count = 600;
+    static int count = 1500;
 
 
     static void initialize(String[] inputSymbols) {
@@ -100,66 +100,42 @@ public class FuzzingLab {
         switch (condition.operator) {
             case "==":
                 switch (left.type) {
-                    case INT:
-                        dist = Math.abs(branchDistance(left) - branchDistance(right));
-                        break;
-                    case BOOL:
-                        dist = (branchDistance(left) == branchDistance(right)) ? 0.0 : 1.0;
-                        break;
                     case STRING:
                         dist = editDistDP(left.str_value, right.str_value);
                         break;
                     default:
-                        throw new RuntimeException("Error: binary condition == encountered incompatible type: " + condition);
+                        dist = Math.abs(branchDistance(left) - branchDistance(right));
+                        break;
                 }
             case "!=":
                 switch (left.type) {
-                    case INT:
-                    case BOOL:
-                        dist = (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
-                        break;
                     case STRING:
                         dist = (!left.str_value.equals(right.str_value)) ? 0.0 : 1.0;
                         break;
                     default:
-                        throw new RuntimeException("Error: binary condition != encountered incompatible type: " + condition);
-                }
-            case "<":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l < r) ? 0.0 : l - r + K;
+                        dist = (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
                         break;
-                    default:
-                        throw new RuntimeException("Error: binary condition < encountered incompatible type: " + condition);
                 }
-            case "<=":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l <= r) ? 0.0 : l - r;
-                        break;
-                    default:
-                        throw new RuntimeException("Error: binary condition <= encountered incompatible type: " + condition);
-                }
-            case ">":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l > r) ? 0.0 : r - l + K;
-                        break;
-                    default:
-                        throw new RuntimeException("Error: binary condition > encountered incompatible type: " + condition);
-                }
-            case ">=":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l >= r) ? 0.0 : r - l;
-                        break;
-                    default:
-                        throw new RuntimeException("Error: binary condition >= encountered incompatible type: " + condition);
-                }
+            case "<": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l < r) ? 0.0 : l - r + K;
+                break;
+            }
+            case "<=": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l <= r) ? 0.0 : l - r;
+                break;
+            }
+            case ">": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l > r) ? 0.0 : r - l + K;
+                break;
+            }
+            case ">=": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l >= r) ? 0.0 : r - l;
+                break;
+            }
             case "&":
             case "&&":
                 dist = branchDistance(left) + branchDistance(right);
@@ -231,7 +207,7 @@ public class FuzzingLab {
      * @return a fuzzed sequence
      */
     static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
-        if (newDistance < totalDistance) {
+        if (newDistance < totalDistance && visited.size() > 0) {
             bestTrace = currentTrace;
             List<String> newTrace = new ArrayList<>(currentTrace);
             // Change symbol at random position
@@ -258,13 +234,11 @@ public class FuzzingLab {
 
     static void run() {
         initialize(DistanceTracker.inputSymbols);
-        DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
         while (!isFinished && count-- > 0) {
             try {
-                // currentTrace = fuzz(DistanceTracker.inputSymbols);
-                currentTrace = generateRandomTrace(DistanceTracker.inputSymbols);
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
+                currentTrace = fuzz(DistanceTracker.inputSymbols);
 
                 // Reset values for next iteration
                 visited.clear();
@@ -277,7 +251,7 @@ public class FuzzingLab {
                 }
 
                 //System.out.println("Woohoo, looping!");
-                Thread.sleep(1000);
+                // Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
