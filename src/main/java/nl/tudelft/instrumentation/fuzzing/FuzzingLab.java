@@ -248,12 +248,12 @@ public class FuzzingLab {
 
          
 
-                if (count % 1000 == 0) {
+                if (count % 50 == 0) {
                     System.out.println(count);
                 }
 
-                //System.out.println("Woohoo, looping!");
-                // Thread.sleep(1000);
+                System.out.println("Woohoo, looping!");
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -264,13 +264,13 @@ public class FuzzingLab {
             .stream()
             .max(Map.Entry.comparingByValue());
 
-        System.out.println(" result final ");
+        System.out.println(" result final max entry ");
         System.out.println(maxEntry);
 
         System.out.println("---------");
         System.out.println(output + " SIZE " + output.size());
 
-        System.out.println("-------------- Branch");
+        System.out.println("-------------- Branches reached");
         System.out.println(conditionsNo.size());
     }
 
