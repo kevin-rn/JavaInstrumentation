@@ -25,7 +25,7 @@ public class FuzzingLab {
 
     static Map<String, Integer> results = new HashMap<>();
 
-    static int count = 1500;
+    static int count = 300;
 
 
     static void initialize(String[] inputSymbols) {
@@ -307,7 +307,7 @@ public class FuzzingLab {
         System.out.println(maxEntry);
 
         System.out.println("---------");
-        System.out.println(output);
+        System.out.println(output + " SIZE " + output.size());
 
         System.out.println("-------------- Branch");
         System.out.println(conditionsNo.size());
