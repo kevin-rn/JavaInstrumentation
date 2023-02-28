@@ -85,7 +85,7 @@ public class MyVar {
     }
 
 
-    public double branchDistance(boolean trigger) {
+    public double branchDistance() {
         double dist = 0;
 
         switch (this.type) {
@@ -101,48 +101,48 @@ public class MyVar {
                 break;
             case UNARY:
                 if (operator.equals("!")) {
-                    dist = 1 - left.branchDistance(trigger);
+                    dist = 1 - left.branchDistance();
                 }
                 break;
             case BINARY:
                 switch (operator) {
                     case "==":
-                        dist = Math.abs(left.branchDistance(trigger) - right.branchDistance(trigger));
+                        dist = Math.abs(left.branchDistance() - right.branchDistance());
                         break;
                     case "!=":
-                        dist = left.branchDistance(trigger) == right.branchDistance(trigger) ? 0 : 1;
+                        dist = left.branchDistance() == right.branchDistance() ? 0 : 1;
                         break;
                     case "<": {
-                        double diff = left.branchDistance(trigger) - right.branchDistance(trigger);
+                        double diff = left.branchDistance() - right.branchDistance();
                         dist = diff < 0 ? K - diff : 0;
                         break;
                     }
                     case "<=": {
-                        double diff = left.branchDistance(trigger) - right.branchDistance(trigger);
+                        double diff = left.branchDistance() - right.branchDistance();
                         dist = diff <= 0 ? -diff : 0;
                         break;
                     }
                     case ">": {
-                        double diff = left.branchDistance(trigger) - right.branchDistance(trigger);
+                        double diff = left.branchDistance() - right.branchDistance();
                         dist = diff > 0 ? K - diff : 0;
                         break;
                     }
                     case ">=": {
-                        double diff = left.branchDistance(trigger) - right.branchDistance(trigger);
+                        double diff = left.branchDistance() - right.branchDistance();
                         dist = Math.max(diff, 0);
                         break;
                     }
                     case "&":
                     case "&&":
-                        dist = left.branchDistance(trigger) + right.branchDistance(trigger);
+                        dist = left.branchDistance() + right.branchDistance();
                         break;
                     case "|":
                     case "||":
-                        dist = Math.min(left.branchDistance(trigger), right.branchDistance(trigger));
+                        dist = Math.min(left.branchDistance(), right.branchDistance());
                         break;
                     case "^":
-                        double d1 = left.branchDistance(trigger) + (1 - right.branchDistance(trigger));
-                        double d2 = right.branchDistance(trigger) + (1 - left.branchDistance(trigger));
+                        double d1 = left.branchDistance() + (1 - right.branchDistance());
+                        double d2 = right.branchDistance() + (1 - left.branchDistance());
                         dist = Math.min(d1, d2);
                         break;
                 }
@@ -151,7 +151,7 @@ public class MyVar {
                 break;
         }
         
-        return trigger ? normalizeDistance(dist) : 1 - normalizeDistance(dist);
+        return normalizeDistance(dist);
     }
 
     static double normalizeDistance(double d) {
