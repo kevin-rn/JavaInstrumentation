@@ -240,11 +240,13 @@ public class FuzzingLab {
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
                 currentTrace = fuzz(DistanceTracker.inputSymbols);
 
+                results.put(String.join("", currentTrace), visited.size());
+                
                 // Reset values for next iteration
                 visited.clear();
                 newDistance = 0;
 
-                results.put(String.join("", currentTrace), visited.size());
+         
 
                 if (count % 1000 == 0) {
                     System.out.println(count);
