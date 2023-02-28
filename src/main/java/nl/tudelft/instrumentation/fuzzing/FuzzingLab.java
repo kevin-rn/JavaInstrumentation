@@ -240,8 +240,11 @@ public class FuzzingLab {
 
 
         if (newDistance <= totalDistance) {
+            System.out.println("NEW DIST");
             newTrace = new ArrayList<>(currentTrace);
             newTrace.set(r.nextInt(newTrace.size()), inputSymbols[r.nextInt(inputSymbols.length)]);
+
+            totalDistance = newDistance;
         }
 
         return newTrace;
