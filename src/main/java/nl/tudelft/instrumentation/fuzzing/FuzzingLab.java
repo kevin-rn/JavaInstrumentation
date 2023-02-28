@@ -20,11 +20,8 @@ public class FuzzingLab {
     static double totalDistance = Double.MAX_VALUE;
 
     static Set<String> output = new HashSet<>();
-    static Set<Integer> conditionsNo = new HashSet<>();
 
-    static Map<String, Integer> results = new HashMap<>();
-
-    static int count = 300;
+    static int seconds = 300;
 
 
     static void initialize(String[] inputSymbols) {
@@ -40,14 +37,12 @@ public class FuzzingLab {
      * @param line_nr   Line number of the if-statement in the original Java file
      */
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
-        //System.out.println("CONDITION " + condition + "Value: " + value + " line nr : " + line_nr);
-        conditionsNo.add(line_nr);
 
         // Check if line_nr already visited
         if (!visited.contains(line_nr)) {
             visited.add(line_nr);
-            // newDistance += value ? condition.branchDistance() : 1 - condition.branchDistance();
             newDistance += value ? branchDistance(condition) : 1 - branchDistance(condition);
+            //newDistance += condition.branchDistance(value);
         }
     }
 
@@ -70,11 +65,8 @@ public class FuzzingLab {
                 dist = condition.str_value.length();
                 break;
             case UNARY:
-                if (condition.operator.equals("!")) {
+                if (condition.operator.equals("!") || condition.operator.equals("-")) {
                     dist = 1.0 - branchDistance(condition.left);
-                } else {
-                    System.out.println("Error: Encountered problem with Unary operator " + condition.operator);
-                    dist = -1.0;
                 }
                 break;
             case BINARY:
@@ -200,9 +192,9 @@ public class FuzzingLab {
     }
 
     /**
-     * Method for fuzzing new inputs for a program. 
+     * Method for fuzzing new inputs for a program.
      * Simple Hill-Climbing that mutates the new trace if branch distance is smaller (optimal) else generates random trace.
-     * 
+     *
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
@@ -235,43 +227,27 @@ public class FuzzingLab {
     static void run() {
         initialize(DistanceTracker.inputSymbols);
 
-        while (!isFinished && count-- > 0) {
+        while (!isFinished && seconds-- > 0) {
             try {
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
                 currentTrace = fuzz(DistanceTracker.inputSymbols);
 
-                results.put(String.join("", currentTrace), visited.size());
-                
                 // Reset values for next iteration
                 visited.clear();
                 newDistance = 0;
 
-         
-
-                if (count % 1000 == 0) {
-                    System.out.println(count);
-                }
-
-                //System.out.println("Woohoo, looping!");
-                // Thread.sleep(1000);
+                System.out.println("Woohoo, looping!");
+                System.out.println(seconds + " seconds to go.");
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
+
         }
 
-        Optional<Map.Entry<String, Integer>> maxEntry = results.entrySet()
-            .stream()
-            .max(Map.Entry.comparingByValue());
+        System.out.println(output);
 
-        System.out.println(" result final ");
-        System.out.println(maxEntry);
-
-        System.out.println("---------");
-        System.out.println(output + " SIZE " + output.size());
-
-        System.out.println("-------------- Branch");
-        System.out.println(conditionsNo.size());
     }
 
     /**
