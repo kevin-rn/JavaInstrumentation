@@ -9,18 +9,17 @@ import java.util.*;
 public class FuzzingLab {
     static Random r = new Random();
     static List<String> currentTrace;
+    static List<String> bestTrace;
     static int traceLength = 10;
     static boolean isFinished = false;
     static final double K = 1.0;
 
-    static double newDistance = Double.MAX_VALUE;
+    static double newDistance = 0.0;
 
-    static Map<Integer, Map<MyVar, Boolean>> visited = new HashMap<>();
+    static Set<Integer> visited = new HashSet<>();
     static double totalDistance = Double.MAX_VALUE;
 
     static Set<String> output = new HashSet<>();
-    static Set<String> traces = new HashSet<>();
-
     static Set<Integer> conditionsNo = new HashSet<>();
 
     static Map<String, Integer> results = new HashMap<>();
@@ -44,15 +43,11 @@ public class FuzzingLab {
         //System.out.println("CONDITION " + condition + "Value: " + value + " line nr : " + line_nr);
         conditionsNo.add(line_nr);
 
-        if (visited.containsKey(line_nr)) {
-            Map<MyVar, Boolean> branches = visited.get(line_nr);
-            branches.put(condition, value);
-
-            //System.out.println("encountered " + branches);
-        } else {
-            Map<MyVar, Boolean> branches = new HashMap<>();
-            branches.put(condition, value);
-            visited.put(line_nr, branches);
+        // Check if line_nr already visited
+        if (!visited.contains(line_nr)) {
+            visited.add(line_nr);
+            // newDistance += value ? condition.branchDistance() : 1 - condition.branchDistance();
+            newDistance += value ? branchDistance(condition) : 1 - branchDistance(condition);
         }
     }
 
@@ -72,10 +67,11 @@ public class FuzzingLab {
                 dist = condition.int_value;
                 break;
             case STRING:
-                throw new RuntimeException("Error: Single string is an invalid branch condition");
+                dist = condition.str_value.length();
+                break;
             case UNARY:
                 if (condition.operator.equals("!")) {
-                    dist = 1.0 - normalizeDistance(branchDistance(condition.left));
+                    dist = 1.0 - branchDistance(condition.left);
                 } else {
                     System.out.println("Error: Encountered problem with Unary operator " + condition.operator);
                     dist = -1.0;
@@ -88,7 +84,7 @@ public class FuzzingLab {
                 System.out.println("Error: Encountered unexpected Branch condition type " + condition.type);
                 throw new RuntimeException("Error: Encountered unexpected Branch condition type " + condition.type);
         }
-        return condition.value ? normalizeDistance(dist) : 1 - normalizeDistance(dist);
+        return normalizeDistance(dist);
     }
 
     /**
@@ -104,66 +100,42 @@ public class FuzzingLab {
         switch (condition.operator) {
             case "==":
                 switch (left.type) {
-                    case INT:
-                        dist = Math.abs(branchDistance(left) - branchDistance(right));
-                        break;
-                    case BOOL:
-                        dist = (branchDistance(left) == branchDistance(right)) ? 0.0 : 1.0;
-                        break;
                     case STRING:
                         dist = editDistDP(left.str_value, right.str_value);
                         break;
                     default:
-                        throw new RuntimeException("Error: binary condition == encountered incompatible type: " + condition);
+                        dist = Math.abs(branchDistance(left) - branchDistance(right));
+                        break;
                 }
             case "!=":
                 switch (left.type) {
-                    case INT:
-                    case BOOL:
-                        dist = (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
-                        break;
                     case STRING:
                         dist = (!left.str_value.equals(right.str_value)) ? 0.0 : 1.0;
                         break;
                     default:
-                        throw new RuntimeException("Error: binary condition != encountered incompatible type: " + condition);
-                }
-            case "<":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l < r) ? 0.0 : l - r + K;
+                        dist = (branchDistance(left) != branchDistance(right)) ? 0.0 : 1.0;
                         break;
-                    default:
-                        throw new RuntimeException("Error: binary condition < encountered incompatible type: " + condition);
                 }
-            case "<=":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l <= r) ? 0.0 : l - r;
-                        break;
-                    default:
-                        throw new RuntimeException("Error: binary condition <= encountered incompatible type: " + condition);
-                }
-            case ">":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l > r) ? 0.0 : r - l + K;
-                        break;
-                    default:
-                        throw new RuntimeException("Error: binary condition > encountered incompatible type: " + condition);
-                }
-            case ">=":
-                switch (left.type) {
-                    case INT:
-                        double l = branchDistance(left), r = branchDistance(right);
-                        dist = (l >= r) ? 0.0 : r - l;
-                        break;
-                    default:
-                        throw new RuntimeException("Error: binary condition >= encountered incompatible type: " + condition);
-                }
+            case "<": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l < r) ? 0.0 : l - r + K;
+                break;
+            }
+            case "<=": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l <= r) ? 0.0 : l - r;
+                break;
+            }
+            case ">": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l > r) ? 0.0 : r - l + K;
+                break;
+            }
+            case ">=": {
+                double l = branchDistance(left), r = branchDistance(right);
+                dist = (l >= r) ? 0.0 : r - l;
+                break;
+            }
             case "&":
             case "&&":
                 dist = branchDistance(left) + branchDistance(right);
@@ -181,7 +153,7 @@ public class FuzzingLab {
                 System.err.println("Error: Encountered unexpected binary branch condition type " + condition.operator);
                 throw new RuntimeException("Error: Encountered unexpected binary branch operator: " + condition.operator);
         }
-        return normalizeDistance(dist);
+        return dist;
     }
 
     /**
@@ -228,30 +200,22 @@ public class FuzzingLab {
     }
 
     /**
-     * Method for fuzzing new inputs for a program.
-     *
+     * Method for fuzzing new inputs for a program. 
+     * Simple Hill-Climbing that mutates the new trace if branch distance is smaller (optimal) else generates random trace.
+     * 
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
     static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
-        List<String> newTrace = null;
-        newDistance = 0;
-
-        for (Map<MyVar, Boolean> branches : visited.values()) {
-            // newDistance += branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
-            newDistance += branches.keySet().stream().map(x-> x.branchDistance(x.value)).reduce(0., Double::sum);
-
-        }
-
         if (newDistance < totalDistance && visited.size() > 0) {
-
-            newTrace = new ArrayList<>(currentTrace);
+            bestTrace = currentTrace;
+            List<String> newTrace = new ArrayList<>(currentTrace);
+            // Change symbol at random position
             newTrace.set(r.nextInt(newTrace.size()), inputSymbols[r.nextInt(inputSymbols.length)]);
-
-            totalDistance = newDistance;
+            return newTrace;
+        } else {
+            return generateRandomTrace(inputSymbols);
         }
-
-        return newTrace;
     }
 
     /**
@@ -270,29 +234,24 @@ public class FuzzingLab {
 
     static void run() {
         initialize(DistanceTracker.inputSymbols);
-        DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
         while (!isFinished && count-- > 0) {
             try {
-                List<String> currFuzz = fuzz(DistanceTracker.inputSymbols);
+                DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
+                currentTrace = fuzz(DistanceTracker.inputSymbols);
 
-                if (currFuzz == null) {
-                    initialize(DistanceTracker.inputSymbols);
-                    DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
-                } else {
-                    DistanceTracker.runNextFuzzedSequence(currFuzz.toArray(new String[0]));
-                }
+                // Reset values for next iteration
+                visited.clear();
+                newDistance = 0;
 
                 results.put(String.join("", currentTrace), visited.size());
-
-                visited.clear();
 
                 if (count % 1000 == 0) {
                     System.out.println(count);
                 }
 
                 //System.out.println("Woohoo, looping!");
-                //Thread.sleep(1000);
+                // Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
