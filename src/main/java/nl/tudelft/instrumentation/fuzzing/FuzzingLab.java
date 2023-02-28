@@ -13,7 +13,7 @@ public class FuzzingLab {
     static boolean isFinished = false;
     static final double K = 1.0;
 
-    static double newDistance = 0;
+    static double newDistance = Double.MAX_VALUE;
 
     static Map<Integer, Map<MyVar, Boolean>> visited = new HashMap<>();
     static double totalDistance = Double.MAX_VALUE;
@@ -25,7 +25,7 @@ public class FuzzingLab {
 
     static Map<String, Integer> results = new HashMap<>();
 
-    static int count = 600;
+    static int count = 1500;
 
 
     static void initialize(String[] inputSymbols) {
@@ -53,8 +53,6 @@ public class FuzzingLab {
             Map<MyVar, Boolean> branches = new HashMap<>();
             branches.put(condition, value);
             visited.put(line_nr, branches);
-
-            newDistance += condition.branchDistance(value);
         }
     }
 
@@ -237,10 +235,16 @@ public class FuzzingLab {
      */
     static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
         List<String> newTrace = null;
+        newDistance = 0;
 
+        for (Map<MyVar, Boolean> branches : visited.values()) {
+            // newDistance += branches.keySet().stream().map(MyVar::branchDistance).reduce(0., Double::sum);
+            newDistance += branches.keySet().stream().map(x-> x.branchDistance(x.value)).reduce(0., Double::sum);
 
-        if (newDistance <= totalDistance) {
-            System.out.println("NEW DIST");
+        }
+
+        if (newDistance < totalDistance && visited.size() > 0) {
+
             newTrace = new ArrayList<>(currentTrace);
             newTrace.set(r.nextInt(newTrace.size()), inputSymbols[r.nextInt(inputSymbols.length)]);
 
@@ -279,10 +283,9 @@ public class FuzzingLab {
                     DistanceTracker.runNextFuzzedSequence(currFuzz.toArray(new String[0]));
                 }
 
-                visited.clear();
-                newDistance = 0;
-
                 results.put(String.join("", currentTrace), visited.size());
+
+                visited.clear();
 
                 if (count % 1000 == 0) {
                     System.out.println(count);
