@@ -242,12 +242,8 @@ public class FuzzingLab {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-
         }
-
         System.out.println(output);
-
     }
 
     /**
