@@ -2,11 +2,14 @@ package nl.tudelft.instrumentation.symbolic;
 
 import java.util.*;
 import com.microsoft.z3.*;
+
+import nl.tudelft.instrumentation.branch.BranchCoverageTracker;
 import nl.tudelft.instrumentation.fuzzing.DistanceTracker;
 
 import java.util.Random;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.BreakIterator;
 
 /**
  * You should write your solution using this class.
@@ -43,35 +46,107 @@ public class SymbolicExecutionLab {
 
     static MyVar createBoolExpr(BoolExpr var, String operator){
         // Any unary expression (!)
-        return new MyVar(PathTracker.ctx.mkFalse());
+        Context c = PathTracker.ctx;
+        if (operator.contains("!")) {
+            return new MyVar(c.mkNot(var));
+        } else {
+            System.out.println("Error: expected (!) but got: " + operator);
+            return new MyVar(c.mkFalse());
+        }
     }
 
     static MyVar createBoolExpr(BoolExpr left_var, BoolExpr right_var, String operator){
         // Any binary expression (&, &&, |, ||)
-        return new MyVar(PathTracker.ctx.mkFalse());
+        Context c = PathTracker.ctx;
+        Expr expr = c.mkFalse();
+        switch(operator) {
+            case "|":
+            case "||":
+                expr = c.mkOr(left_var, right_var);
+                break;
+            case "&":
+            case "&&":
+                expr = c.mkAnd(left_var, right_var);
+                break;
+            default:
+                System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
+        }     
+        return new MyVar(expr);
     }
 
     static MyVar createIntExpr(IntExpr var, String operator){
         // Any unary expression (+, -)
-        if(operator.equals("+") || operator.equals("-"))
-            return new MyVar(PathTracker.ctx.mkInt(0));
-        return new MyVar(PathTracker.ctx.mkFalse());
+        // if(operator.equals("+") || operator.equals("-"))
+        //     return new MyVar(PathTracker.ctx.mkInt(0));
+        Context c = PathTracker.ctx;
+        if (operator.equals("-")) {
+            return new MyVar(c.mkUnaryMinus(var));
+        } else {
+            return new MyVar(var);
+        }
     }
 
     static MyVar createIntExpr(IntExpr left_var, IntExpr right_var, String operator){
         // Any binary expression (+, -, /, etc)
-        if(operator.equals("+") || operator.equals("-") || operator.equals("/") || operator.equals("*") || operator.equals("%") || operator.equals("^"))
-            return new MyVar(PathTracker.ctx.mkInt(0));
-        return new MyVar(PathTracker.ctx.mkFalse());
+        // if(operator.equals("+") || operator.equals("-") || operator.equals("/") || operator.equals("*") || operator.equals("%") || operator.equals("^"))
+        //     return new MyVar(PathTracker.ctx.mkInt(0));
+        Context c = PathTracker.ctx;
+        Expr expr = c.mkFalse();
+        switch (operator) {
+            case "+":
+                expr = c.mkAdd(left_var, right_var);
+                break;
+            case "-":
+                expr = c.mkSub(left_var, right_var);
+                break;
+            case "/":
+                expr = c.mkDiv(left_var, right_var);
+                break;
+            case "*":
+                expr = c.mkMul(left_var, right_var);
+                break;
+            case "%":
+                expr = c.mkMod(left_var, right_var);
+                break;
+            case "^":
+                expr = c.mkPower(left_var, right_var);
+                break;
+            case "==":
+                expr = c.mkEq(left_var, right_var);
+                break;
+            case "<":
+                expr = c.mkLt(left_var, right_var);
+                break;
+            case "<=":
+                expr = c.mkLe(left_var, right_var);
+                break;
+            case ">":
+                expr = c.mkGt(left_var, right_var);
+                break;
+            case ">=":
+                expr = c.mkGe(left_var, right_var);
+                break;
+            default:
+                System.out.println("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
+        }
+        return new MyVar(expr);
     }
 
     static MyVar createStringExpr(SeqExpr left_var, SeqExpr right_var, String operator){
         // We only support String.equals
-        return new MyVar(PathTracker.ctx.mkFalse());
+        Context c = PathTracker.ctx;
+        if (operator.equals("==")) {
+            return new MyVar(c.mkEq(left_var, right_var));
+        } else {
+            return new MyVar(c.mkFalse());
+        }
     }
 
     static void assign(MyVar var, String name, Expr value, Sort s){
         // All variable assignments, use single static assignment
+        Context c = PathTracker.ctx;
+        var.z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
+        PathTracker.addToModel(c.mkAnd(c.mkEq(var.z3var, value)));
     }
 
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr){
