@@ -20,6 +20,9 @@ public class SymbolicExecutionLab {
     static Boolean isFinished = false;
     static List<String> currentTrace;
     static int traceLength = 10;
+    static Set<Expr> unsat = new HashSet<>();
+    static Set<Integer> visited = new HashSet<>();
+    static Set<String> output = new HashSet<>();
 
     static void initialize(String[] inputSymbols){
         // Initialise a random trace from the input symbols of the problem.
@@ -58,20 +61,20 @@ public class SymbolicExecutionLab {
     static MyVar createBoolExpr(BoolExpr left_var, BoolExpr right_var, String operator){
         // Any binary expression (&, &&, |, ||)
         Context c = PathTracker.ctx;
-        Expr expr = c.mkFalse();
+        Expr z3var = c.mkFalse();
         switch(operator) {
             case "|":
             case "||":
-                expr = c.mkOr(left_var, right_var);
+                z3var = c.mkOr(left_var, right_var);
                 break;
             case "&":
             case "&&":
-                expr = c.mkAnd(left_var, right_var);
+                z3var = c.mkAnd(left_var, right_var);
                 break;
             default:
                 System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
         }     
-        return new MyVar(expr);
+        return new MyVar(z3var);
     }
 
     static MyVar createIntExpr(IntExpr var, String operator){
@@ -91,45 +94,45 @@ public class SymbolicExecutionLab {
         // if(operator.equals("+") || operator.equals("-") || operator.equals("/") || operator.equals("*") || operator.equals("%") || operator.equals("^"))
         //     return new MyVar(PathTracker.ctx.mkInt(0));
         Context c = PathTracker.ctx;
-        Expr expr = c.mkFalse();
+        Expr z3var = c.mkFalse();
         switch (operator) {
             case "+":
-                expr = c.mkAdd(left_var, right_var);
+                z3var = c.mkAdd(left_var, right_var);
                 break;
             case "-":
-                expr = c.mkSub(left_var, right_var);
+                z3var = c.mkSub(left_var, right_var);
                 break;
             case "/":
-                expr = c.mkDiv(left_var, right_var);
+                z3var = c.mkDiv(left_var, right_var);
                 break;
             case "*":
-                expr = c.mkMul(left_var, right_var);
+                z3var = c.mkMul(left_var, right_var);
                 break;
             case "%":
-                expr = c.mkMod(left_var, right_var);
+                z3var = c.mkMod(left_var, right_var);
                 break;
             case "^":
-                expr = c.mkPower(left_var, right_var);
+                z3var = c.mkPower(left_var, right_var);
                 break;
             case "==":
-                expr = c.mkEq(left_var, right_var);
+                z3var = c.mkEq(left_var, right_var);
                 break;
             case "<":
-                expr = c.mkLt(left_var, right_var);
+                z3var = c.mkLt(left_var, right_var);
                 break;
             case "<=":
-                expr = c.mkLe(left_var, right_var);
+                z3var = c.mkLe(left_var, right_var);
                 break;
             case ">":
-                expr = c.mkGt(left_var, right_var);
+                z3var = c.mkGt(left_var, right_var);
                 break;
             case ">=":
-                expr = c.mkGe(left_var, right_var);
+                z3var = c.mkGe(left_var, right_var);
                 break;
             default:
                 System.out.println("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
         }
-        return new MyVar(expr);
+        return new MyVar(z3var);
     }
 
     static MyVar createStringExpr(SeqExpr left_var, SeqExpr right_var, String operator){
@@ -145,12 +148,22 @@ public class SymbolicExecutionLab {
     static void assign(MyVar var, String name, Expr value, Sort s){
         // All variable assignments, use single static assignment
         Context c = PathTracker.ctx;
-        var.z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
-        PathTracker.addToModel(c.mkAnd(c.mkEq(var.z3var, value)));
+        Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
+        var.z3var = value;
+        PathTracker.addToModel(c.mkEq(z3var, value));
     }
 
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr){
         // Call the solver
+        Context c = PathTracker.ctx;
+        BoolExpr z3var = c.mkEq(condition.z3var, c.mkBool(value));
+        if(!visited.contains(line_nr)) {
+            if (!unsat.contains(z3var)) {
+                PathTracker.solve(z3var, true);
+                PathTracker.addToModel(z3var);
+            }
+            visited.add(line_nr);
+        }
     }
 
     static void newSatisfiableInput(LinkedList<String> new_inputs) {
@@ -188,21 +201,30 @@ public class SymbolicExecutionLab {
 
     static void run() {
         initialize(PathTracker.inputSymbols);
-        PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
+
         // Place here your code to guide your fuzzer with its search using Symbolic Execution.
         while(!isFinished) {
-            // Do things!
-            try {
-                System.out.println("Woohoo, looping!");
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
+            currentTrace = fuzz(PathTracker.inputSymbols);
+            visited.clear();
+            PathTracker.reset();
+
+            System.out.println(output);
+            // // Do things!
+            // try {
+            //     System.out.println("Woohoo, looping!");
+            //     Thread.sleep(1000);
+            // } catch (InterruptedException e) {
+            //     e.printStackTrace();
+            // }
         }
     }
 
     public static void output(String out){
-        System.out.println(out);
+        if(out.contains("error")) {
+            output.add(out);
+        }
+        // System.out.println(out);
     }
 
 }
