@@ -24,12 +24,12 @@ public class SymbolicExecutionLab {
     static Set<Integer> visited = new HashSet<>();
     static Set<String> output = new HashSet<>();
 
-    static void initialize(String[] inputSymbols){
+    static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
         currentTrace = generateRandomTrace(inputSymbols);
     }
 
-    static MyVar createVar(String name, Expr value, Sort s){
+    static MyVar createVar(String name, Expr value, Sort s) {
         Context c = PathTracker.ctx;
         /**
          * Create var, assign value and add to path constraint.
@@ -42,12 +42,25 @@ public class SymbolicExecutionLab {
         return new MyVar(z3var, name);
     }
 
-    static MyVar createInput(String name, Expr value, Sort s){
-        // Create an input var, these should be free variables!
-        return new MyVar(PathTracker.ctx.mkString(""));
+    static MyVar createInput(String name, Expr value, Sort s) {
+        // Create a free variable
+        Context c = PathTracker.ctx;
+        Expr z3var = c.mkConst(name, s);
+
+
+        BoolExpr constraint = c.mkFalse();
+        for (String input : PathTracker.inputSymbols) {
+            constraint = c.mkOr(c.mkEq(z3var, c.mkString(input)), constraint);
+        }
+        PathTracker.addToModel(constraint);
+
+        BoolExpr eqConstraint = c.mkEq(z3var, value);
+
+        return new MyVar(eqConstraint, name);
     }
 
-    static MyVar createBoolExpr(BoolExpr var, String operator){
+
+    static MyVar createBoolExpr(BoolExpr var, String operator) {
         // Any unary expression (!)
         Context c = PathTracker.ctx;
         if (operator.contains("!")) {
@@ -58,11 +71,11 @@ public class SymbolicExecutionLab {
         }
     }
 
-    static MyVar createBoolExpr(BoolExpr left_var, BoolExpr right_var, String operator){
+    static MyVar createBoolExpr(BoolExpr left_var, BoolExpr right_var, String operator) {
         // Any binary expression (&, &&, |, ||)
         Context c = PathTracker.ctx;
         Expr z3var = c.mkFalse();
-        switch(operator) {
+        switch (operator) {
             case "|":
             case "||":
                 z3var = c.mkOr(left_var, right_var);
@@ -73,11 +86,11 @@ public class SymbolicExecutionLab {
                 break;
             default:
                 System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
-        }     
+        }
         return new MyVar(z3var);
     }
 
-    static MyVar createIntExpr(IntExpr var, String operator){
+    static MyVar createIntExpr(IntExpr var, String operator) {
         // Any unary expression (+, -)
         // if(operator.equals("+") || operator.equals("-"))
         //     return new MyVar(PathTracker.ctx.mkInt(0));
@@ -89,7 +102,7 @@ public class SymbolicExecutionLab {
         }
     }
 
-    static MyVar createIntExpr(IntExpr left_var, IntExpr right_var, String operator){
+    static MyVar createIntExpr(IntExpr left_var, IntExpr right_var, String operator) {
         // Any binary expression (+, -, /, etc)
         // if(operator.equals("+") || operator.equals("-") || operator.equals("/") || operator.equals("*") || operator.equals("%") || operator.equals("^"))
         //     return new MyVar(PathTracker.ctx.mkInt(0));
@@ -111,9 +124,10 @@ public class SymbolicExecutionLab {
             case "%":
                 z3var = c.mkMod(left_var, right_var);
                 break;
-            case "^":
-                z3var = c.mkPower(left_var, right_var);
-                break;
+            // XOR?
+            // case "^":
+            //     z3var = c.mkPower(left_var, right_var);
+            //     break;
             case "==":
                 z3var = c.mkEq(left_var, right_var);
                 break;
@@ -135,7 +149,7 @@ public class SymbolicExecutionLab {
         return new MyVar(z3var);
     }
 
-    static MyVar createStringExpr(SeqExpr left_var, SeqExpr right_var, String operator){
+    static MyVar createStringExpr(SeqExpr left_var, SeqExpr right_var, String operator) {
         // We only support String.equals
         Context c = PathTracker.ctx;
         if (operator.equals("==")) {
@@ -145,7 +159,7 @@ public class SymbolicExecutionLab {
         }
     }
 
-    static void assign(MyVar var, String name, Expr value, Sort s){
+    static void assign(MyVar var, String name, Expr value, Sort s) {
         // All variable assignments, use single static assignment
         Context c = PathTracker.ctx;
         Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
@@ -153,11 +167,11 @@ public class SymbolicExecutionLab {
         PathTracker.addToModel(c.mkEq(z3var, value));
     }
 
-    static void encounteredNewBranch(MyVar condition, boolean value, int line_nr){
+    static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
         // Call the solver
         Context c = PathTracker.ctx;
         BoolExpr z3var = c.mkEq(condition.z3var, c.mkBool(value));
-        if(!visited.contains(line_nr)) {
+        if (!visited.contains(line_nr)) {
             if (!unsat.contains(z3var)) {
                 PathTracker.solve(z3var, true);
                 PathTracker.addToModel(z3var);
@@ -168,15 +182,18 @@ public class SymbolicExecutionLab {
 
     static void newSatisfiableInput(LinkedList<String> new_inputs) {
         // Hurray! found a new branch using these new inputs!
+        System.out.println("FOUND NEW SAT");
     }
 
     /**
      * Method for fuzzing new inputs for a program.
+     *
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
-    static List<String> fuzz(String[] inputSymbols){
+    static List<String> fuzz(String[] inputSymbols) {
         /*
+         * TODO:
          * Add here your code for fuzzing a new sequence for the RERS problem.
          * You can guide your fuzzer to fuzz "smart" input sequences to cover
          * more branches using symbolic execution. Right now we just generate
@@ -188,6 +205,7 @@ public class SymbolicExecutionLab {
 
     /**
      * Generate a random trace from an array of symbols.
+     *
      * @param symbols the symbols from which a trace should be generated from.
      * @return a random trace that is generated from the given symbols.
      */
@@ -203,7 +221,7 @@ public class SymbolicExecutionLab {
         initialize(PathTracker.inputSymbols);
 
         // Place here your code to guide your fuzzer with its search using Symbolic Execution.
-        while(!isFinished) {
+        while (!isFinished) {
             PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
             currentTrace = fuzz(PathTracker.inputSymbols);
             visited.clear();
@@ -220,8 +238,8 @@ public class SymbolicExecutionLab {
         }
     }
 
-    public static void output(String out){
-        if(out.contains("error")) {
+    public static void output(String out) {
+        if (out.contains("error")) {
             output.add(out);
         }
         // System.out.println(out);
