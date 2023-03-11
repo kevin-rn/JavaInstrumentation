@@ -124,7 +124,7 @@ public class SymbolicExecutionLab {
             case "%":
                 z3var = c.mkMod(left_var, right_var);
                 break;
-            // XOR?
+            
             // case "^":
             //     z3var = c.mkPower(left_var, right_var);
             //     break;
