@@ -45,18 +45,17 @@ public class SymbolicExecutionLab {
     static MyVar createInput(String name, Expr value, Sort s) {
         // Create a free variable
         Context c = PathTracker.ctx;
-        Expr z3var = c.mkConst(name, s);
-
+        Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
 
         BoolExpr constraint = c.mkFalse();
         for (String input : PathTracker.inputSymbols) {
             constraint = c.mkOr(c.mkEq(z3var, c.mkString(input)), constraint);
         }
         PathTracker.addToModel(constraint);
+        MyVar input = new MyVar(z3var, name);
+        PathTracker.inputs.add(input);
 
-        BoolExpr eqConstraint = c.mkEq(z3var, value);
-
-        return new MyVar(eqConstraint, name);
+        return input;
     }
 
 
