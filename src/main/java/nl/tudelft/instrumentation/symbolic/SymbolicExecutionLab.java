@@ -3,13 +3,9 @@ package nl.tudelft.instrumentation.symbolic;
 import java.util.*;
 import com.microsoft.z3.*;
 
-import nl.tudelft.instrumentation.branch.BranchCoverageTracker;
-import nl.tudelft.instrumentation.fuzzing.DistanceTracker;
+import java.util.stream.Collectors;
 
 import java.util.Random;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.text.BreakIterator;
 
 /**
  * You should write your solution using this class.
@@ -24,9 +20,15 @@ public class SymbolicExecutionLab {
     static Set<Integer> visited = new HashSet<>();
     static Set<String> output = new HashSet<>();
 
+    static Queue<String[]> queue = new LinkedList<>();
+    static Set<String[]> usedTraces = new HashSet<>();
+
+    static int visitedBranches = 0;
+
     static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
         currentTrace = generateRandomTrace(inputSymbols);
+        queue.add(currentTrace.toArray(new String[0]));
     }
 
     static MyVar createVar(String name, Expr value, Sort s) {
@@ -123,7 +125,7 @@ public class SymbolicExecutionLab {
             case "%":
                 z3var = c.mkMod(left_var, right_var);
                 break;
-            
+
             // case "^":
             //     z3var = c.mkPower(left_var, right_var);
             //     break;
@@ -172,7 +174,7 @@ public class SymbolicExecutionLab {
         BoolExpr z3var = c.mkEq(condition.z3var, c.mkBool(value));
         if (!visited.contains(line_nr)) {
             if (!unsat.contains(z3var)) {
-                PathTracker.solve(z3var, true);
+                PathTracker.solve(z3var, false);
                 PathTracker.addToModel(z3var);
             }
             visited.add(line_nr);
@@ -180,8 +182,31 @@ public class SymbolicExecutionLab {
     }
 
     static void newSatisfiableInput(LinkedList<String> new_inputs) {
+        //System.out.println("NEW INPUTS " + new_inputs);
+
+        List<String[]> inputs = new_inputs.stream().map(x -> {
+
+            char[] charArray = x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "").toCharArray(); // Convert string to char array
+            String[] stringArray = new String[charArray.length];
+
+            for (int i = 0; i < charArray.length; i++) {
+                stringArray[i] = Character.toString(charArray[i]);
+            }
+
+            return stringArray;
+
+        }).collect(Collectors.toList());
+
+        for (String[] input : inputs) {
+            if (!usedTraces.contains(input)) {
+                queue.add(input);
+            }
+        }
+
+
         // Hurray! found a new branch using these new inputs!
-        System.out.println("FOUND NEW SAT");
+        //System.out.println("FOUND NEW SAT");
+
     }
 
     /**
@@ -219,14 +244,57 @@ public class SymbolicExecutionLab {
     static void run() {
         initialize(PathTracker.inputSymbols);
 
+        int count = 0;
+
         // Place here your code to guide your fuzzer with its search using Symbolic Execution.
         while (!isFinished) {
-            PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
-            currentTrace = fuzz(PathTracker.inputSymbols);
+
+
+            String[] trace = queue.poll();
+
+            while (usedTraces.contains(trace) && trace != null) {
+                trace = queue.poll();
+            }
+
+            while (trace == null || usedTraces.contains(trace)) {
+                trace = generateRandomTrace(PathTracker.inputSymbols).toArray(new String[0]);
+            }
+
+
+            System.out.println("TRACE " + Arrays.stream(trace).map(x -> {
+                String res = "";
+                for (char i : x.toCharArray()) {
+                    res += i;
+                }
+                return res;
+            }).collect(Collectors.toList()));
+
+
+            System.out.println(output);
+            // Do things!
+            try {
+                System.out.println("Woohoo, looping!");
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+
+            String[] toRun = Arrays.copyOf(trace, trace.length + 1);
+            toRun[toRun.length - 1] = PathTracker.inputSymbols[r.nextInt(PathTracker.inputSymbols.length)];
+
+
+            PathTracker.runNextFuzzedSequence(toRun);
+
+            usedTraces.add(toRun);
+
+            //currentTrace = fuzz(PathTracker.inputSymbols);
+
+            visitedBranches = Math.max(visitedBranches, visited.size());
             visited.clear();
             PathTracker.reset();
 
-            System.out.println(output);
+            //System.out.println(output);
             // // Do things!
             // try {
             //     System.out.println("Woohoo, looping!");
@@ -234,6 +302,21 @@ public class SymbolicExecutionLab {
             // } catch (InterruptedException e) {
             //     e.printStackTrace();
             // }
+
+            //DEBUG CODE
+            if (count++ > 5000) {
+                count = 0;
+            }
+
+            if (count % 50 == 0) {
+                System.out.println("VISITED SIZE " + visitedBranches + " Queue size " + queue.size() + "first element " + Arrays.stream(queue.peek()).map(x -> {
+                    String res = "";
+                    for (char i : x.toCharArray()) {
+                        res += i;
+                    }
+                    return res;
+                }).collect(Collectors.toList()));
+            }
         }
     }
 
