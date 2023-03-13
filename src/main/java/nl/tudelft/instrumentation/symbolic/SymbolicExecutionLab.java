@@ -1,5 +1,6 @@
 package nl.tudelft.instrumentation.symbolic;
-
+import java.util.concurrent.TimeUnit;
+import java.nio.file.Path;
 import java.util.*;
 import com.microsoft.z3.*;
 
@@ -14,21 +15,29 @@ public class SymbolicExecutionLab {
 
     static Random r = new Random();
     static Boolean isFinished = false;
-    static List<String> currentTrace;
+    static String[] currentTrace;
     static int traceLength = 10;
     static Set<Expr> unsat = new HashSet<>();
     static Set<Integer> visited = new HashSet<>();
     static Set<String> output = new HashSet<>();
 
-    static Queue<String[]> queue = new LinkedList<>();
+    // static Queue<String[]> queue = new LinkedList<>();
+    static PriorityQueue<String[]> queue = new PriorityQueue<>(new Comparator<String[]>() {
+        @Override
+        public int compare(String[] s1, String[] s2) {
+            return s1.length - s2.length;
+        }
+    });
+
     static Set<String[]> usedTraces = new HashSet<>();
 
     static int visitedBranches = 0;
 
     static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
-        currentTrace = generateRandomTrace(inputSymbols);
-        queue.add(currentTrace.toArray(new String[0]));
+        List<String> randomTrace = generateRandomTrace(inputSymbols);
+        currentTrace = randomTrace.toArray(new String[0]);
+        queue.add(currentTrace);
     }
 
     static MyVar createVar(String name, Expr value, Sort s) {
@@ -68,7 +77,8 @@ public class SymbolicExecutionLab {
             return new MyVar(c.mkNot(var));
         } else {
             System.out.println("Error: expected (!) but got: " + operator);
-            return new MyVar(c.mkFalse());
+            // return new MyVar(c.mkFalse());
+            return null;
         }
     }
 
@@ -85,8 +95,11 @@ public class SymbolicExecutionLab {
             case "&&":
                 z3var = c.mkAnd(left_var, right_var);
                 break;
+            case "==":
+                z3var = c.mkEq(left_var, right_var);
             default:
                 System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
+                return null;
         }
         return new MyVar(z3var);
     }
@@ -98,8 +111,11 @@ public class SymbolicExecutionLab {
         Context c = PathTracker.ctx;
         if (operator.equals("-")) {
             return new MyVar(c.mkUnaryMinus(var));
-        } else {
+        } else if (operator.equals("+") || operator.equals("")) {
             return new MyVar(var);
+        } else {
+            System.out.println("Error: expected (-, +) but got: " + operator);
+            return null;
         }
     }
 
@@ -125,10 +141,9 @@ public class SymbolicExecutionLab {
             case "%":
                 z3var = c.mkMod(left_var, right_var);
                 break;
-
-            // case "^":
-            //     z3var = c.mkPower(left_var, right_var);
-            //     break;
+            case "^":
+                z3var = c.mkPower(left_var, right_var);
+                break;
             case "==":
                 z3var = c.mkEq(left_var, right_var);
                 break;
@@ -146,6 +161,7 @@ public class SymbolicExecutionLab {
                 break;
             default:
                 System.out.println("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
+                return null;
         }
         return new MyVar(z3var);
     }
@@ -156,7 +172,8 @@ public class SymbolicExecutionLab {
         if (operator.equals("==")) {
             return new MyVar(c.mkEq(left_var, right_var));
         } else {
-            return new MyVar(c.mkFalse());
+            // return new MyVar(c.mkFalse());
+            return null;
         }
     }
 
@@ -168,25 +185,38 @@ public class SymbolicExecutionLab {
         PathTracker.addToModel(c.mkEq(z3var, value));
     }
 
+    // TODO: Check for Unsat
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
         // Call the solver
         Context c = PathTracker.ctx;
         BoolExpr z3var = c.mkEq(condition.z3var, c.mkBool(value));
+        BoolExpr Oppositez3var = c.mkEq(condition.z3var, c.mkBool(!value));
+        visited.add(line_nr);
+
         if (!visited.contains(line_nr)) {
-            if (!unsat.contains(z3var)) {
+            // Find input that flips the condition
+            if (value) {
+                PathTracker.solve(Oppositez3var, false);
+            } else {
                 PathTracker.solve(z3var, false);
-                PathTracker.addToModel(z3var);
             }
-            visited.add(line_nr);
+        }
+
+        // Add constraint to the branches regardless if its satisfiable
+        if (value) {
+            PathTracker.addToBranches(z3var);
+        } else {
+            PathTracker.addToBranches(Oppositez3var);
         }
     }
 
     static void newSatisfiableInput(LinkedList<String> new_inputs) {
         //System.out.println("NEW INPUTS " + new_inputs);
 
+        // Convert char to string array
         List<String[]> inputs = new_inputs.stream().map(x -> {
-
-            char[] charArray = x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "").toCharArray(); // Convert string to char array
+            // Remove symbols (e.g. quotations, commas, etc.)
+            char[] charArray = x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "").toCharArray(); 
             String[] stringArray = new String[charArray.length];
 
             for (int i = 0; i < charArray.length; i++) {
@@ -194,19 +224,17 @@ public class SymbolicExecutionLab {
             }
 
             return stringArray;
-
         }).collect(Collectors.toList());
 
+        // Add new input trace to the queue if its not already there or its already run.
         for (String[] input : inputs) {
-            if (!usedTraces.contains(input)) {
+            if (!queue.contains(input) && !usedTraces.contains(input)) {
                 queue.add(input);
             }
         }
 
-
         // Hurray! found a new branch using these new inputs!
         //System.out.println("FOUND NEW SAT");
-
     }
 
     /**
@@ -215,7 +243,7 @@ public class SymbolicExecutionLab {
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
-    static List<String> fuzz(String[] inputSymbols) {
+    static String[] fuzz(String[] inputSymbols) {
         /*
          * TODO:
          * Add here your code for fuzzing a new sequence for the RERS problem.
@@ -224,7 +252,14 @@ public class SymbolicExecutionLab {
          * a complete random sequence using the given input symbols. Please
          * change it to your own code.
          */
-        return generateRandomTrace(inputSymbols);
+
+        if (queue.isEmpty()) {
+            // Generate random trace when the queue is empty
+            List<String> randomTrace = generateRandomTrace(inputSymbols);
+            return randomTrace.toArray(new String[0]);
+        } else {
+            return queue.poll();
+        }
     }
 
     /**
@@ -243,56 +278,45 @@ public class SymbolicExecutionLab {
 
     static void run() {
         initialize(PathTracker.inputSymbols);
-
         int count = 0;
 
+        // Run for 5 minutes.
+        long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5L, TimeUnit.MINUTES);
+
         // Place here your code to guide your fuzzer with its search using Symbolic Execution.
-        while (!isFinished) {
+        while (!isFinished && System.nanoTime() < endTime) {
+            currentTrace = fuzz(PathTracker.inputSymbols);
+            usedTraces.add(currentTrace);
+            printTrace(currentTrace);
+            PathTracker.runNextFuzzedSequence(currentTrace);
 
-
-            String[] trace = queue.poll();
-
-            while (usedTraces.contains(trace) && trace != null) {
-                trace = queue.poll();
-            }
-
-            while (trace == null || usedTraces.contains(trace)) {
-                trace = generateRandomTrace(PathTracker.inputSymbols).toArray(new String[0]);
-            }
-
-
-            System.out.println("TRACE " + Arrays.stream(trace).map(x -> {
-                String res = "";
-                for (char i : x.toCharArray()) {
-                    res += i;
-                }
-                return res;
-            }).collect(Collectors.toList()));
-
-
-            System.out.println(output);
-            // Do things!
-            try {
-                System.out.println("Woohoo, looping!");
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-
-            String[] toRun = Arrays.copyOf(trace, trace.length + 1);
-            toRun[toRun.length - 1] = PathTracker.inputSymbols[r.nextInt(PathTracker.inputSymbols.length)];
-
-
-            PathTracker.runNextFuzzedSequence(toRun);
-
-            usedTraces.add(toRun);
-
-            //currentTrace = fuzz(PathTracker.inputSymbols);
+            // TODO: Fix printing out the correct trace and only mutate on satisfiable strings
+            // String[] toRun = Arrays.copyOf(currentTrace, currentTrace.length + 1);
+            // toRun[toRun.length - 1] = PathTracker.inputSymbols[r.nextInt(PathTracker.inputSymbols.length)];
+            // printTrace(toRun);
+            // PathTracker.runNextFuzzedSequence(toRun);
+            // usedTraces.add(toRun);
 
             visitedBranches = Math.max(visitedBranches, visited.size());
             visited.clear();
             PathTracker.reset();
+
+            //DEBUG CODE
+            // if (count++ == 5000) {
+            //     isFinished = true;
+            // }
+
+
+            System.out.println("Visited branches: " + visitedBranches + "\nOutput: " + output + "\nOutput size: " + output.size());
+            // if (count % 10 == 0) {
+            //     System.out.println("Visited size: " + visitedBranches + ", Queue size: " + queue.size() + ", First element: " + Arrays.stream(queue.peek()).map(x -> {
+            //         String res = "";
+            //         for (char i : x.toCharArray()) {
+            //             res += i;
+            //         }
+            //         return res;
+            //     }).collect(Collectors.toList()));
+            // }
 
             //System.out.println(output);
             // // Do things!
@@ -302,22 +326,8 @@ public class SymbolicExecutionLab {
             // } catch (InterruptedException e) {
             //     e.printStackTrace();
             // }
-
-            //DEBUG CODE
-            if (count++ > 5000) {
-                count = 0;
-            }
-
-            if (count % 50 == 0) {
-                System.out.println("VISITED SIZE " + visitedBranches + " Queue size " + queue.size() + "first element " + Arrays.stream(queue.peek()).map(x -> {
-                    String res = "";
-                    for (char i : x.toCharArray()) {
-                        res += i;
-                    }
-                    return res;
-                }).collect(Collectors.toList()));
-            }
         }
+        System.exit(-1);
     }
 
     public static void output(String out) {
@@ -325,6 +335,14 @@ public class SymbolicExecutionLab {
             output.add(out);
         }
         // System.out.println(out);
+    }
+
+    private static void printTrace(String[] trace) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String t : trace) {
+            stringBuilder.append(t);
+        }
+        System.out.println("Trace: " + stringBuilder.toString());
     }
 
 }
