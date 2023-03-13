@@ -15,28 +15,28 @@ public class SymbolicExecutionLab {
 
     static Random r = new Random();
     static Boolean isFinished = false;
-    static String[] currentTrace;
+    static List<String> currentTrace;
     static int traceLength = 10;
-    static Set<Expr> unsat = new HashSet<>();
-    static Set<Integer> visited = new HashSet<>();
-    static Set<String> output = new HashSet<>();
 
-    // static Queue<String[]> queue = new LinkedList<>();
-    static PriorityQueue<String[]> queue = new PriorityQueue<>(new Comparator<String[]>() {
+    static int visitedBranches = 0;
+    static boolean isSatisfiable = false;
+
+    static Set<BoolExpr> unsatisfied = new HashSet<>();
+    static Set<String> visited = new HashSet<>();           // Store Line_nr + value
+    static Set<String> output = new HashSet<>();            // Store error codes
+    static Set<List<String>> usedTraces = new HashSet<>();
+
+    static PriorityQueue<List<String>> queue = new PriorityQueue<>(new Comparator<List<String>>() {
         @Override
-        public int compare(String[] s1, String[] s2) {
-            return s1.length - s2.length;
+        public int compare(List<String> s1, List<String> s2) {
+            return s1.size() - s2.size();
         }
     });
 
-    static Set<String[]> usedTraces = new HashSet<>();
-
-    static int visitedBranches = 0;
 
     static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
-        List<String> randomTrace = generateRandomTrace(inputSymbols);
-        currentTrace = randomTrace.toArray(new String[0]);
+        currentTrace = generateRandomTrace(inputSymbols);
         queue.add(currentTrace);
     }
 
@@ -95,8 +95,6 @@ public class SymbolicExecutionLab {
             case "&&":
                 z3var = c.mkAnd(left_var, right_var);
                 break;
-            case "==":
-                z3var = c.mkEq(left_var, right_var);
             default:
                 System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
                 return null;
@@ -185,56 +183,60 @@ public class SymbolicExecutionLab {
         PathTracker.addToModel(c.mkEq(z3var, value));
     }
 
-    // TODO: Check for Unsat
-    static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
-        // Call the solver
-        Context c = PathTracker.ctx;
-        BoolExpr z3var = c.mkEq(condition.z3var, c.mkBool(value));
-        BoolExpr Oppositez3var = c.mkEq(condition.z3var, c.mkBool(!value));
-        visited.add(line_nr);
 
-        if (!visited.contains(line_nr)) {
-            // Find input that flips the condition
-            if (value) {
-                PathTracker.solve(Oppositez3var, false);
-            } else {
-                PathTracker.solve(z3var, false);
-            }
+    static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
+        // Skip branch if already visited
+        if (visited.contains(line_nr + "-" + value)) {
+            return;
+        } else {
+            visited.add(line_nr + "-" + value);
         }
 
-        // Add constraint to the branches regardless if its satisfiable
-        if (value) {
+        // Call the solver
+        Context c = PathTracker.ctx;
+        // Reset satisfiablity check before calling solve.
+        isSatisfiable = false;
+        // For branches to visit use mkFalse and mkTrue instead of the more generic mkBool(value)
+        BoolExpr z3var = c.mkEq(condition.z3var, c.mkTrue());
+        BoolExpr Oppositez3var = c.mkEq(condition.z3var, c.mkFalse());
+
+        // Find input that flips the condition; so solve for opposite branch only if it is not already solved before as unsatisfiable.
+        if (value && !unsatisfied.contains(Oppositez3var)) {
+            PathTracker.solve(Oppositez3var, false);
+            // Add visited branch regardless of it being satisfiable or not.
             PathTracker.addToBranches(z3var);
-        } else {
+
+            // Check if it was unsatisfiable
+            if (!isSatisfiable) {
+                unsatisfied.add(Oppositez3var);
+            }
+        } else if (!value && !unsatisfied.contains(z3var)) {
+            PathTracker.solve(z3var, false);
             PathTracker.addToBranches(Oppositez3var);
+            if (!isSatisfiable) {
+                unsatisfied.add(z3var);
+            }
         }
     }
 
     static void newSatisfiableInput(LinkedList<String> new_inputs) {
-        //System.out.println("NEW INPUTS " + new_inputs);
-
-        // Convert char to string array
-        List<String[]> inputs = new_inputs.stream().map(x -> {
-            // Remove symbols (e.g. quotations, commas, etc.)
-            char[] charArray = x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "").toCharArray(); 
-            String[] stringArray = new String[charArray.length];
-
-            for (int i = 0; i < charArray.length; i++) {
-                stringArray[i] = Character.toString(charArray[i]);
-            }
-
-            return stringArray;
-        }).collect(Collectors.toList());
-
-        // Add new input trace to the queue if its not already there or its already run.
-        for (String[] input : inputs) {
-            if (!queue.contains(input) && !usedTraces.contains(input)) {
-                queue.add(input);
-            }
-        }
-
         // Hurray! found a new branch using these new inputs!
         //System.out.println("FOUND NEW SAT");
+        isSatisfiable = true;
+
+        // Remove symbols (e.g. quotations, commas, etc.).
+        List<String> inputs = new_inputs.stream().map(x -> x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "")).collect(Collectors.toList());
+
+        // Mutate trace by adding random symbols until tracelength for deeper exploration.
+        String[] symbols = PathTracker.inputSymbols;
+        for(int i = inputs.size() - 1; i < traceLength; i++) {
+            inputs.add(symbols[r.nextInt(symbols.length)]);
+        }
+
+        // Add new input trace to the queue if its not already there or its already run.
+        if (!queue.contains(inputs) && !usedTraces.contains(inputs)) {
+            queue.add(inputs);
+        }
     }
 
     /**
@@ -243,7 +245,7 @@ public class SymbolicExecutionLab {
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
-    static String[] fuzz(String[] inputSymbols) {
+    static List<String> fuzz(String[] inputSymbols) {
         /*
          * TODO:
          * Add here your code for fuzzing a new sequence for the RERS problem.
@@ -254,9 +256,9 @@ public class SymbolicExecutionLab {
          */
 
         if (queue.isEmpty()) {
+            System.out.print("Random ");
             // Generate random trace when the queue is empty
-            List<String> randomTrace = generateRandomTrace(inputSymbols);
-            return randomTrace.toArray(new String[0]);
+            return generateRandomTrace(inputSymbols);
         } else {
             return queue.poll();
         }
@@ -286,19 +288,19 @@ public class SymbolicExecutionLab {
         // Place here your code to guide your fuzzer with its search using Symbolic Execution.
         while (!isFinished && System.nanoTime() < endTime) {
             currentTrace = fuzz(PathTracker.inputSymbols);
+
+            // TODO: Only print trace that cause error
+            System.out.print("Trace: ");
+            currentTrace.forEach(System.out::print);
+            System.out.println("\n");
+            
+            PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
+
+            // visitedBranches = Math.max(visitedBranches, visited.size());
+            // visited.clear();
+            System.out.println("Total visited branches: " + visited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
             usedTraces.add(currentTrace);
-            printTrace(currentTrace);
-            PathTracker.runNextFuzzedSequence(currentTrace);
 
-            // TODO: Fix printing out the correct trace and only mutate on satisfiable strings
-            // String[] toRun = Arrays.copyOf(currentTrace, currentTrace.length + 1);
-            // toRun[toRun.length - 1] = PathTracker.inputSymbols[r.nextInt(PathTracker.inputSymbols.length)];
-            // printTrace(toRun);
-            // PathTracker.runNextFuzzedSequence(toRun);
-            // usedTraces.add(toRun);
-
-            visitedBranches = Math.max(visitedBranches, visited.size());
-            visited.clear();
             PathTracker.reset();
 
             //DEBUG CODE
@@ -306,8 +308,6 @@ public class SymbolicExecutionLab {
             //     isFinished = true;
             // }
 
-
-            System.out.println("Visited branches: " + visitedBranches + "\nOutput: " + output + "\nOutput size: " + output.size());
             // if (count % 10 == 0) {
             //     System.out.println("Visited size: " + visitedBranches + ", Queue size: " + queue.size() + ", First element: " + Arrays.stream(queue.peek()).map(x -> {
             //         String res = "";
@@ -336,13 +336,4 @@ public class SymbolicExecutionLab {
         }
         // System.out.println(out);
     }
-
-    private static void printTrace(String[] trace) {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (String t : trace) {
-            stringBuilder.append(t);
-        }
-        System.out.println("Trace: " + stringBuilder.toString());
-    }
-
 }
