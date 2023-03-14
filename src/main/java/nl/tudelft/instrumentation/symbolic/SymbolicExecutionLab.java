@@ -23,6 +23,7 @@ public class SymbolicExecutionLab {
 
     static Set<BoolExpr> unsatisfied = new HashSet<>();
     static Set<String> visited = new HashSet<>();           // Store Line_nr + value
+    static Set<String> totalVisited = new HashSet<>();           // Store Line_nr + value
     static Set<String> output = new HashSet<>();            // Store error codes
     static Set<List<String>> usedTraces = new HashSet<>();
 
@@ -186,11 +187,12 @@ public class SymbolicExecutionLab {
 
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
         // Skip branch if already visited
-        if (visited.contains(line_nr + "-" + value)) {
+        String branch_nr = line_nr + "-" + value;
+        if (visited.contains(branch_nr)) {
             return;
-        } else {
-            visited.add(line_nr + "-" + value);
         }
+        visited.add(branch_nr);
+        totalVisited.add(branch_nr);
 
         // Call the solver
         Context c = PathTracker.ctx;
@@ -227,11 +229,9 @@ public class SymbolicExecutionLab {
         // Remove symbols (e.g. quotations, commas, etc.).
         List<String> inputs = new_inputs.stream().map(x -> x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "")).collect(Collectors.toList());
 
-        // Mutate trace by adding random symbols until tracelength for deeper exploration.
+        // Mutate trace by adding a random symbol for deeper exploration.
         String[] symbols = PathTracker.inputSymbols;
-        for(int i = inputs.size() - 1; i < traceLength; i++) {
-            inputs.add(symbols[r.nextInt(symbols.length)]);
-        }
+        inputs.add(symbols[r.nextInt(symbols.length)]);
 
         // Add new input trace to the queue if its not already there or its already run.
         if (!queue.contains(inputs) && !usedTraces.contains(inputs)) {
@@ -289,16 +289,14 @@ public class SymbolicExecutionLab {
         while (!isFinished && System.nanoTime() < endTime) {
             currentTrace = fuzz(PathTracker.inputSymbols);
 
-            // TODO: Only print trace that cause error
             System.out.print("Trace: ");
             currentTrace.forEach(System.out::print);
             System.out.println("\n");
             
             PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
-            // visitedBranches = Math.max(visitedBranches, visited.size());
             // visited.clear();
-            System.out.println("Total visited branches: " + visited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+            System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
             usedTraces.add(currentTrace);
 
             PathTracker.reset();
@@ -306,16 +304,6 @@ public class SymbolicExecutionLab {
             //DEBUG CODE
             // if (count++ == 5000) {
             //     isFinished = true;
-            // }
-
-            // if (count % 10 == 0) {
-            //     System.out.println("Visited size: " + visitedBranches + ", Queue size: " + queue.size() + ", First element: " + Arrays.stream(queue.peek()).map(x -> {
-            //         String res = "";
-            //         for (char i : x.toCharArray()) {
-            //             res += i;
-            //         }
-            //         return res;
-            //     }).collect(Collectors.toList()));
             // }
 
             //System.out.println(output);
