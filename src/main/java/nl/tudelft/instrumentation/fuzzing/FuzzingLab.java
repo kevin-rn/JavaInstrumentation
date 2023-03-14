@@ -1,5 +1,5 @@
 package nl.tudelft.instrumentation.fuzzing;
-
+import java.util.concurrent.TimeUnit;
 import java.util.*;
 
 
@@ -15,14 +15,12 @@ public class FuzzingLab {
     static final double K = 1.0;
 
     static double newDistance = 0.0;
+    static int permutationLength = 10;
 
+    static List<List<String>> fuzz_traces = new ArrayList<>();
     static Set<Integer> visited = new HashSet<>();
     static double totalDistance = Double.MAX_VALUE;
-
     static Set<String> output = new HashSet<>();
-
-    static int seconds = 300;
-
 
     static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
@@ -199,12 +197,43 @@ public class FuzzingLab {
      * @return a fuzzed sequence
      */
     static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
+        // Select the most optimal Trace that has a lower computed sum of branches compared to other found Traces
         if (newDistance < totalDistance && visited.size() > 0) {
+            // Set new lower sum of distances to be the total
+            totalDistance = newDistance;
+
+            // Keep track of best trace found so far
             bestTrace = currentTrace;
-            List<String> newTrace = new ArrayList<>(currentTrace);
-            // Change symbol at random position
-            newTrace.set(r.nextInt(newTrace.size()), inputSymbols[r.nextInt(inputSymbols.length)]);
-            return newTrace;
+
+            // Generate multiple permutations of the current best trace.
+            HashSet<List<String>> generated = new HashSet<>();
+            while (generated.size() < permutationLength) {
+                // Copy best trace
+                List<String> newTrace = new ArrayList<>(bestTrace);
+
+                // Generate random symbol and random position
+                String randomSymbol = inputSymbols[r.nextInt(inputSymbols.length)];
+                int randomPosition = r.nextInt(newTrace.size());
+                int randomNum = r.nextInt(3);
+
+                // Perform random mutation: Replace, Addition or Deletion
+                if(randomNum == 2) {
+                    // Replace symbol at random position
+                    newTrace.set(randomPosition, randomSymbol);
+                } else if (randomNum == 1) {
+                    // Add symbol at random position
+                    newTrace.add(randomPosition, randomSymbol);
+                } else {
+                    // Delete symbol at random position
+                    newTrace.remove(randomPosition);
+                }
+
+                // Add mutated trace to the list
+                generated.add(newTrace);
+            }
+            // Update fuzzed traces
+            fuzz_traces = new ArrayList<>(generated);
+            return bestTrace;
         } else {
             return generateRandomTrace(inputSymbols);
         }
@@ -225,25 +254,43 @@ public class FuzzingLab {
     }
 
     static void run() {
+        
         initialize(DistanceTracker.inputSymbols);
+        List<List<String>> fuzz_traces = new ArrayList<>();
 
-        while (!isFinished && seconds-- > 0) {
+        // Run for 5 minutes.
+        long timer = System.nanoTime();
+        long minute = TimeUnit.NANOSECONDS.convert(1L, TimeUnit.MINUTES);
+        long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5L, TimeUnit.MINUTES);
+
+        while (!isFinished && timer < endTime) {
             try {
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
-                currentTrace = fuzz(DistanceTracker.inputSymbols);
+                
+                // Print every minute
+                if (timer + minute <= System.nanoTime()) {
+                    timer += minute; // Increase by a  minute
+                    System.out.println("output size: " + output.size());
+                }
+
+                if (fuzz_traces.size() > 0) {
+                    currentTrace = fuzz_traces.remove(0);
+                } else {
+                    currentTrace = fuzz(DistanceTracker.inputSymbols);
+                }
 
                 // Reset values for next iteration
                 visited.clear();
                 newDistance = 0;
 
-                System.out.println("Woohoo, looping!");
-                System.out.println(seconds + " seconds to go.");
-                Thread.sleep(1000);
+            //     System.out.println("Woohoo, looping!");
+            //     Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-        System.out.println(output);
+        System.out.println("Output: " + output + ", output size: " + output.size());
+        System.exit(-1);
     }
 
     /**
