@@ -207,6 +207,7 @@ public class FuzzingLab {
             // Generate multiple permutations of the current best trace.
             HashSet<List<String>> generated = new HashSet<>();
             while (generated.size() < permutationTotal) {
+
                 // Copy best trace
                 List<String> newTrace = new ArrayList<>(bestTrace);
 
@@ -253,8 +254,10 @@ public class FuzzingLab {
     }
 
     static void run() {
+        
         initialize(DistanceTracker.inputSymbols);
-
+        List<List<String>> fuzz_traces = new ArrayList<>();
+        
         // Run for 5 minutes.
         long timer = System.nanoTime();
         long elapse = TimeUnit.NANOSECONDS.convert(10L, TimeUnit.SECONDS);
@@ -294,7 +297,6 @@ public class FuzzingLab {
                 //     timer += elapse;
                     // System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
                 // }
-
 
                 // Reset values for next iteration
                 visited.clear();
