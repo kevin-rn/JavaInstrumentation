@@ -12,19 +12,24 @@ public class FuzzingLab {
     static List<String> bestTrace;
     static int traceLength = 10;
     static boolean isFinished = false;
+    static boolean hasBetterTrace = false;
     static final double K = 1.0;
 
     static double newDistance = 0.0;
-    static int permutationLength = 10;
+    static int permutationTotal= 10;
 
     static List<List<String>> fuzz_traces = new ArrayList<>();
-    static Set<Integer> visited = new HashSet<>();
+    static Set<String> visited = new HashSet<>();
+    static Set<String> totalVisited = new HashSet<>();
+
+    static double smallestNormDistance = Double.MAX_VALUE;
     static double totalDistance = Double.MAX_VALUE;
     static Set<String> output = new HashSet<>();
 
     static void initialize(String[] inputSymbols) {
         // Initialise a random trace from the input symbols of the problem.
         currentTrace = generateRandomTrace(inputSymbols);
+        fuzz_traces.add(currentTrace);
     }
 
     /**
@@ -37,10 +42,11 @@ public class FuzzingLab {
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
 
         // Check if line_nr already visited
-        if (!visited.contains(line_nr)) {
-            visited.add(line_nr);
+        if (!visited.contains(line_nr + "-" + value)) {
+            String branch = line_nr + "-" + value;
+            visited.add(branch);
+            totalVisited.add(branch);
             newDistance += value ? branchDistance(condition) : 1 - branchDistance(condition);
-            //newDistance += condition.branchDistance(value);
         }
     }
 
@@ -196,18 +202,12 @@ public class FuzzingLab {
      * @param inputSymbols the inputSymbols to fuzz from.
      * @return a fuzzed sequence
      */
-    static List<String> fuzz(String[] inputSymbols) throws InterruptedException {
-        // Select the most optimal Trace that has a lower computed sum of branches compared to other found Traces
-        if (newDistance < totalDistance && visited.size() > 0) {
-            // Set new lower sum of distances to be the total
-            totalDistance = newDistance;
-
-            // Keep track of best trace found so far
-            bestTrace = currentTrace;
-
+    static List<String> fuzz(String[] inputSymbols, boolean hasBetterTrace) throws InterruptedException {
+        if (hasBetterTrace) {
             // Generate multiple permutations of the current best trace.
             HashSet<List<String>> generated = new HashSet<>();
-            while (generated.size() < permutationLength) {
+            while (generated.size() < permutationTotal) {
+
                 // Copy best trace
                 List<String> newTrace = new ArrayList<>(bestTrace);
 
@@ -257,27 +257,46 @@ public class FuzzingLab {
         
         initialize(DistanceTracker.inputSymbols);
         List<List<String>> fuzz_traces = new ArrayList<>();
-
+        
         // Run for 5 minutes.
         long timer = System.nanoTime();
-        long minute = TimeUnit.NANOSECONDS.convert(1L, TimeUnit.MINUTES);
+        long elapse = TimeUnit.NANOSECONDS.convert(10L, TimeUnit.SECONDS);
         long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5L, TimeUnit.MINUTES);
 
-        while (!isFinished && timer < endTime) {
+        while (!isFinished && System.nanoTime() < endTime) {
             try {
-                DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
-                
-                // Print every minute
-                if (timer + minute <= System.nanoTime()) {
-                    timer += minute; // Increase by a  minute
-                    System.out.println("output size: " + output.size());
-                }
-
-                if (fuzz_traces.size() > 0) {
+                if (!fuzz_traces.isEmpty()) {
                     currentTrace = fuzz_traces.remove(0);
                 } else {
-                    currentTrace = fuzz(DistanceTracker.inputSymbols);
+                    // currentTrace = fuzz(DistanceTracker.inputSymbols, false);           // Random Fuzzing
+                    currentTrace = fuzz(DistanceTracker.inputSymbols, hasBetterTrace);     // Hill-Climbing
+                    hasBetterTrace = false;
                 }
+
+                System.out.print("Trace: ");
+                currentTrace.forEach(System.out::print);
+                System.out.println("\n");
+
+                DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
+
+                System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+
+                double newNormdistance = newDistance / (newDistance + visited.size());
+                // Select the most optimal Trace that has a lower computed normalised sum of branches compared to previous best found Trace
+                if (newNormdistance < smallestNormDistance) {
+                    // Set new lower sum of distances to be the total
+                    totalDistance = newDistance;
+                    smallestNormDistance = newNormdistance;
+                    // Keep track of best trace found so far
+                    bestTrace = currentTrace;
+                    hasBetterTrace = true;
+                }
+
+                // Print every x amount of time
+                // if (timer + elapse <= System.nanoTime()) {
+                //     timer += elapse;
+                    // System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+                // }
 
                 // Reset values for next iteration
                 visited.clear();
@@ -289,7 +308,7 @@ public class FuzzingLab {
                 e.printStackTrace();
             }
         }
-        System.out.println("Output: " + output + ", output size: " + output.size());
+        System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
         System.exit(-1);
     }
 
