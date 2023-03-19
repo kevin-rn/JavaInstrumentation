@@ -1,18 +1,46 @@
 package nl.tudelft.instrumentation.patching;
 import java.util.*;
 
+
+
+
 public class PatchingLab {
 
+        /**
+         * Helper class for storing test result counts.
+         */
+        static class TestCount {
+                public int successAmount;
+                public int failureAmount;
+
+                TestCount(int successAmount, int failureAmount) {
+                        this.successAmount = successAmount;
+                        this.failureAmount = failureAmount;
+                }
+        }
+
+        final static int POPULATION_SIZE = 10;
+        static int totalPatches = 0;
         static Random r = new Random();
         static boolean isFinished = false;
 
+        static HashSet<Integer> visitedOperators = new HashSet<>();
+        static List<String[]> population = new ArrayList<>();
+        static HashMap<Integer, TestCount> testCount = new HashMap<>();
+        static HashMap<Integer, Float> tarantulaResults = new HashMap<>();
+
+
         static void initialize(){
                 // initialize the population based on OperatorTracker.operators
+                for(int i = 1; i < POPULATION_SIZE; i++) {
+                        population.add(OperatorTracker.operators.clone());
+                }
         }
 
         // encounteredOperator gets called for each operator encountered while running tests
         static boolean encounteredOperator(String operator, int left, int right, int operator_nr){
                 // Do something useful
+                visitedOperators.add(operator_nr);
 
                 String replacement = OperatorTracker.operators[operator_nr];
                 if(replacement.equals("!=")) return left != right;
@@ -26,12 +54,69 @@ public class PatchingLab {
 
         static boolean encounteredOperator(String operator, boolean left, boolean right, int operator_nr){
                 // Do something useful
+                visitedOperators.add(operator_nr);
 
                 String replacement = OperatorTracker.operators[operator_nr];
                 if(replacement.equals("!=")) return left != right;
                 if(replacement.equals("==")) return left == right;
                 return false;
         }
+
+        /**
+         * Calculates Tarantula score for given operators.
+         * @param index
+         */
+        static void tarantulaScore(int index) {
+
+                OperatorTracker.operators = population.remove(index);
+
+                int success = 0;
+                int failed = 0;
+
+                // Initialize mapping with counts being 0 for each operator.
+                for (int opIndex = 0; opIndex < OperatorTracker.operators.length; opIndex++) {
+                        testCount.put(opIndex, new TestCount(0, 0));
+                }
+
+                // Run each test and keep track of the count.
+                for (int testIndex = 0; testIndex < OperatorTracker.tests.size(); testIndex++) {
+                        boolean check = OperatorTracker.runTest(testIndex);
+                        if (check) {
+                                success++;
+                                for (int visit : visitedOperators) {
+                                        testCount.get(visit).successAmount++;
+                                }
+                        } else {
+                                failed++;
+                                for (int visit : visitedOperators) {
+                                        testCount.get(visit).failureAmount++;
+                                }
+                        }
+                        visitedOperators.clear();
+                }
+
+                // Check if patches were found
+                if (failed == 0) {
+                        totalPatches++;
+                }
+
+                // Calculate Tarantula scores and store them in hashmap.
+                for (int scoreIndex = 0; scoreIndex < OperatorTracker.operators.length; scoreIndex++) {
+                        TestCount count = testCount.get(scoreIndex);
+                        float failedRatio = count.failureAmount/failed;
+                        float successRatio = count.successAmount/success;
+                        float score = failedRatio / (failedRatio + successRatio);
+                        tarantulaResults.put(scoreIndex, score);
+                }
+        }
+
+        static void mutateOperators(int index) {
+                // Mutate on these
+                String[] operators = population.get(index);
+
+                System.out.println("perform mutation");
+        }
+
 
         static void run() {
                 initialize();
@@ -41,18 +126,28 @@ public class PatchingLab {
                 // Tests are loaded from resources/rers2020_test_cases. If you are you are using
                 // your own tests, make sure you put them in the same folder with the same
                 // naming convention.
-                OperatorTracker.runAllTests();
+                // OperatorTracker.runAllTests();
                 System.out.println("Entered run");
 
                 // Loop here, running your genetic algorithm until you think it is done
                 while (!isFinished) {
-                        // Do things!
-                        try {
-                                System.out.println("Woohoo, looping!");
-                                Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                                e.printStackTrace();
+
+                        for (int idx = 0; idx < POPULATION_SIZE; idx++) {
+                                tarantulaScore(idx);
+                                mutateOperators(idx);
                         }
+
+                        // Clear for next iteration
+                        testCount.clear();
+                        tarantulaResults.clear();
+
+                        // Do things!
+                        // try {
+                        //         System.out.println("Woohoo, looping!");
+                        //         Thread.sleep(1000);
+                        // } catch (InterruptedException e) {
+                        //         e.printStackTrace();
+                        // }
                 }
         }
 
