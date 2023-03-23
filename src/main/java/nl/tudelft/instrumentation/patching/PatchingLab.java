@@ -19,6 +19,22 @@ public class PatchingLab {
                 }
         }
 
+        static class OperatorCounter implements Comparable<OperatorCounter>{
+                public int operator;
+                public float score;
+
+                OperatorCounter(int operator, float score){
+                        this.operator = operator;
+                        this.score = score;
+                }
+
+                @Override
+                public int compareTo(OperatorCounter o) {
+                        return Float.compare(o.score, this.score);
+                }
+
+        }
+
         final static int POPULATION_SIZE = 10;
         static int totalPatches = 0;
         static Random r = new Random();
@@ -27,12 +43,12 @@ public class PatchingLab {
         static HashSet<Integer> visitedOperators = new HashSet<>();
         static List<String[]> population = new ArrayList<>();
         static HashMap<Integer, TestCount> testCount = new HashMap<>();
-        static HashMap<Integer, Float> tarantulaResults = new HashMap<>();
+        static PriorityQueue<OperatorCounter> tarantulaResults = new PriorityQueue<>();
 
 
         static void initialize(){
                 // initialize the population based on OperatorTracker.operators
-                for(int i = 1; i < POPULATION_SIZE; i++) {
+                for(int i = 0; i < POPULATION_SIZE; i++) {
                         population.add(OperatorTracker.operators.clone());
                 }
         }
@@ -68,7 +84,7 @@ public class PatchingLab {
          */
         static void tarantulaScore(int index) {
 
-                OperatorTracker.operators = population.remove(index);
+                OperatorTracker.operators = population.get(index);
 
                 int success = 0;
                 int failed = 0;
@@ -101,18 +117,19 @@ public class PatchingLab {
                 }
 
                 // Calculate Tarantula scores and store them in hashmap.
-                for (int scoreIndex = 0; scoreIndex < OperatorTracker.operators.length; scoreIndex++) {
-                        TestCount count = testCount.get(scoreIndex);
+                for (int operator = 0; operator < OperatorTracker.operators.length; operator++) {
+                        TestCount count = testCount.get(operator);
                         float failedRatio = count.failureAmount/failed;
                         float successRatio = count.successAmount/success;
                         float score = failedRatio / (failedRatio + successRatio);
-                        tarantulaResults.put(scoreIndex, score);
+                        tarantulaResults.add(new OperatorCounter(operator,score));
                 }
         }
 
         static void mutateOperators(int index) {
                 // Mutate on these
-                String[] operators = population.get(index);
+                //String[] operators = population.get(index);
+                System.out.println("INDEX MUTATION " + index);
 
                 System.out.println("perform mutation");
         }
@@ -134,7 +151,7 @@ public class PatchingLab {
 
                         for (int idx = 0; idx < POPULATION_SIZE; idx++) {
                                 tarantulaScore(idx);
-                                mutateOperators(idx);
+                                //mutateOperators(idx);
                         }
 
                         // Clear for next iteration
