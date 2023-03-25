@@ -34,7 +34,7 @@ public class PatchingLab {
 
         @Override
         public String toString() {
-            return "OperatorCounter{" +
+            return "ScoreCounter{" +
                 "id=" + id +
                 ", score=" + score +
                 '}';
@@ -42,7 +42,8 @@ public class PatchingLab {
     }
 
 
-    final static int POPULATION_SIZE = 10;
+    final static int MAX_POPULATION_SIZE = 32;
+    static int INIT_POPULATION_SIZE = 16;
     static int MUTATION_SIZE = 5;
 
 
@@ -62,7 +63,7 @@ public class PatchingLab {
     static void initialize() {
         OperatorTracker.runAllTests();
         // initialize the population based on OperatorTracker.operators
-        for (int i = 0; i < POPULATION_SIZE; i++) {
+        for (int i = 0; i < INIT_POPULATION_SIZE; i++) {
             population.add(OperatorTracker.operators.clone());
         }
 
@@ -122,7 +123,7 @@ public class PatchingLab {
     }
 
     private static void calculateFitness() {
-        for (int i = 0; i < POPULATION_SIZE; i++) {
+        for (int i = 0; i < population.size(); i++) {
             populationFitness.add(new ScoreCounter(i, getFitness(i)));
         }
         populationFitness.sort(Comparator.reverseOrder());
@@ -198,6 +199,51 @@ public class PatchingLab {
 
     }
 
+    static String[] crossover(String[] a, String[] b) {
+
+
+        String[] crossoverRes = new String[a.length];
+
+        for (int i = 0; i < a.length; i++) {
+            int rand = r.nextInt(10000);
+
+            if (rand > 5000) {
+                crossoverRes[i] = a[i];
+            } else {
+                crossoverRes[i] = b[i];
+            }
+        }
+
+        return crossoverRes;
+    }
+
+    static void tournamentAndCrossover() {
+
+        List<String[]> newIndividuals = new ArrayList<>();
+        calculateFitness();
+
+        //remove the 1/4 worst performers
+        populationFitness.subList(0, populationFitness.size() - populationFitness.size() / 4);
+
+        int i = 1;
+
+        while (newIndividuals.size() < MAX_POPULATION_SIZE && i < populationFitness.size()) {
+            newIndividuals.add(crossover(population.get(populationFitness.get(i).id), population.get(populationFitness.get(i - 1).id)));
+            i++;
+        }
+
+
+        i = 0;
+        //add back the ones with the best fitness if there is still space in the population
+        while(newIndividuals.size() < MAX_POPULATION_SIZE && i < populationFitness.size()){
+            newIndividuals.add(population.get(populationFitness.get(i).id));
+            i++;
+        }
+
+        population = newIndividuals;
+
+    }
+
 
     static void run() {
         initialize();
@@ -212,16 +258,21 @@ public class PatchingLab {
 
         // Loop here, running your genetic algorithm until you think it is done
         while (!isFinished) {
+            System.out.println("POPULATION SIZE " + population.size());
 
-            for (int idx = 0; idx < POPULATION_SIZE; idx++) {
+
+            for (int idx = 0; idx < population.size(); idx++) {
                 tarantulaScore(idx);
                 mutateOperators(idx);
             }
 
 
-            calculateFitness();
+            tournamentAndCrossover();
 
             System.out.println("Fitness " + populationFitness);
+            System.out.println("Patches " + totalPatches);
+
+
 
             // Clear for next iteration
             testCount.clear();
