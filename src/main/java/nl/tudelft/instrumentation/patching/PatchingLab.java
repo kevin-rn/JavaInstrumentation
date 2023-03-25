@@ -18,42 +18,45 @@ public class PatchingLab {
         }
     }
 
-    static class OperatorCounter implements Comparable<OperatorCounter> {
-        public int operator;
+    static class ScoreCounter implements Comparable<ScoreCounter> {
+        public int id;
         public double score;
 
-        OperatorCounter(int operator, double score) {
-            this.operator = operator;
+        public ScoreCounter(int id, double score) {
+            this.id = id;
             this.score = score;
         }
-        
+
+        @Override
+        public int compareTo(ScoreCounter o) {
+            return Double.compare(this.score, o.score);
+        }
+
         @Override
         public String toString() {
             return "OperatorCounter{" +
-                "operator=" + operator +
+                "id=" + id +
                 ", score=" + score +
                 '}';
         }
-
-        @Override
-        public int compareTo(OperatorCounter o) {
-            return Double.compare(o.score, this.score);
-        }
-
     }
 
+
     final static int POPULATION_SIZE = 10;
-    final static int MUTATION_SIZE = 5;
+    static int MUTATION_SIZE = 5;
 
 
     static int totalPatches = 0;
     static Random r = new Random();
     static boolean isFinished = false;
 
-    static HashSet<Integer> visitedOperators = new HashSet<>();
+    static Set<Integer> visitedOperators = new HashSet<>();
     static List<String[]> population = new ArrayList<>();
-    static HashMap<Integer, TestCount> testCount = new HashMap<>();
-    static PriorityQueue<OperatorCounter> tarantulaResults = new PriorityQueue<>();
+    static Map<Integer, TestCount> testCount = new HashMap<>();
+    static Map<Integer, List<ScoreCounter>> tarantulaResults = new HashMap<>();
+
+    static List<ScoreCounter> populationFitness = new ArrayList<>();
+    static Set<Double> fitness = new HashSet<>();
 
 
     static void initialize() {
@@ -62,6 +65,8 @@ public class PatchingLab {
         for (int i = 0; i < POPULATION_SIZE; i++) {
             population.add(OperatorTracker.operators.clone());
         }
+
+        MUTATION_SIZE = OperatorTracker.operators.length / 10;
     }
 
     // encounteredOperator gets called for each operator encountered while running tests
@@ -105,11 +110,22 @@ public class PatchingLab {
         return false;
     }
 
-    private static double getFitness() {
+    private static double getFitness(int id) {
+
+
+        OperatorTracker.operators = population.get(id);
+
         List<Boolean> res = OperatorTracker.runAllTests();
         long trueVals = res.stream().filter(x -> x).count();
 
         return (double) trueVals / res.size();
+    }
+
+    private static void calculateFitness() {
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            populationFitness.add(new ScoreCounter(i, getFitness(i)));
+        }
+        populationFitness.sort(Comparator.reverseOrder());
     }
 
     /**
@@ -152,6 +168,10 @@ public class PatchingLab {
             totalPatches++;
         }
 
+        if (!tarantulaResults.containsKey(index)) {
+            tarantulaResults.put(index, new ArrayList<>());
+        }
+
         // Calculate Tarantula scores and store them in hashmap.
         for (int operator = 0; operator < OperatorTracker.operators.length; operator++) {
 
@@ -163,30 +183,19 @@ public class PatchingLab {
             double successRatio = (count.successAmount + epsilon) / (success + epsilon);
 
             double score = (failedRatio + epsilon) / (failedRatio + successRatio + epsilon);
-            tarantulaResults.add(new OperatorCounter(operator, score));
+            tarantulaResults.get(index).add(new ScoreCounter(operator, score));
         }
     }
 
     static void mutateOperators(int index) {
         String[] operatorsList = OperatorTracker.operators;
 
-        List<OperatorCounter> toMutate = new ArrayList<>();
+        tarantulaResults.get(index).sort(Comparator.reverseOrder());
 
-        int k = MUTATION_SIZE;
-
-        while (k-- >= 0) {
-            toMutate.add(tarantulaResults.poll());
+        for (int i = 0; i < MUTATION_SIZE; i++) {
+            population.get(index)[tarantulaResults.get(index).get(i).id] = operatorsList[r.nextInt(operatorsList.length)];
         }
 
-        for (OperatorCounter op : toMutate) {
-            population.get(index)[op.operator] = operatorsList[r.nextInt(operatorsList.length)];
-        }
-
-        //add back the removed operator counters from the pq
-        tarantulaResults.addAll(toMutate);
-
-
-        System.out.println("perform mutation");
     }
 
 
@@ -209,19 +218,15 @@ public class PatchingLab {
                 mutateOperators(idx);
             }
 
-            System.out.println("Fitness" + getFitness());
+
+            calculateFitness();
+
+            System.out.println("Fitness " + populationFitness);
 
             // Clear for next iteration
             testCount.clear();
             tarantulaResults.clear();
-
-            //Do things!
-            try {
-                System.out.println("Woohoo, looping!");
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            populationFitness.clear();
         }
     }
 
