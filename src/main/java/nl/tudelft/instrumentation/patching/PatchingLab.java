@@ -1,7 +1,7 @@
 package nl.tudelft.instrumentation.patching;
 
 import java.util.*;
-
+import java.util.concurrent.TimeUnit;
 
 public class PatchingLab {
 
@@ -18,6 +18,9 @@ public class PatchingLab {
         }
     }
 
+    /**
+     * Helper class for keeping track of the Fitness score for a given population index.
+     */
     static class ScoreCounter implements Comparable<ScoreCounter> {
         public int id;
         public double score;
@@ -46,10 +49,11 @@ public class PatchingLab {
     static int INIT_POPULATION_SIZE = 16;
     static int MUTATION_SIZE = 5;
 
-
+    static HashSet<Integer> patches = new HashSet<>();
     static int totalPatches = 0;
     static Random r = new Random();
     static boolean isFinished = false;
+    static double bestFitness = Integer.MIN_VALUE;
 
     static Set<Integer> visitedOperators = new HashSet<>();
     static List<String[]> population = new ArrayList<>();
@@ -112,22 +116,20 @@ public class PatchingLab {
     }
 
     private static double getFitness(int id) {
-
-
         OperatorTracker.operators = population.get(id);
 
         List<Boolean> res = OperatorTracker.runAllTests();
         long trueVals = res.stream().filter(x -> x).count();
 
-        return (double) trueVals / res.size();
+        double fitness = (double) trueVals / res.size();
+
+        if (fitness > bestFitness) {
+            bestFitness = fitness;
+        }
+
+        return fitness;
     }
 
-    private static void calculateFitness() {
-        for (int i = 0; i < population.size(); i++) {
-            populationFitness.add(new ScoreCounter(i, getFitness(i)));
-        }
-        populationFitness.sort(Comparator.reverseOrder());
-    }
 
     /**
      * Calculates Tarantula score for given operators.
@@ -164,8 +166,9 @@ public class PatchingLab {
             visitedOperators.clear();
         }
 
-        // Check if patches were found
+        // Check if patches were found by keeping track of the unique operators causing no failures
         if (failed == 0) {
+            patches.add(Arrays.hashCode(OperatorTracker.operators));
             totalPatches++;
         }
 
@@ -200,8 +203,6 @@ public class PatchingLab {
     }
 
     static String[] crossover(String[] a, String[] b) {
-
-
         String[] crossoverRes = new String[a.length];
 
         for (int i = 0; i < a.length; i++) {
@@ -220,10 +221,10 @@ public class PatchingLab {
     static void tournamentAndCrossover() {
 
         List<String[]> newIndividuals = new ArrayList<>();
-        calculateFitness();
+        populationFitness.sort(Comparator.reverseOrder());
 
         //remove the 1/4 worst performers
-        populationFitness.subList(0, populationFitness.size() - populationFitness.size() / 4);
+        populationFitness.subList(0, populationFitness.size() - (populationFitness.size() / 4));
 
         int i = 1;
 
@@ -256,23 +257,23 @@ public class PatchingLab {
         // OperatorTracker.runAllTests();
         System.out.println("Entered run");
 
-        // Loop here, running your genetic algorithm until you think it is done
-        while (!isFinished) {
-            System.out.println("POPULATION SIZE " + population.size());
+        // Run for 30 minutes.
+        long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(30L, TimeUnit.MINUTES);
 
+        // Loop here, running your genetic algorithm until you think it is done
+        while (!isFinished && System.nanoTime() < endTime) {
+            System.out.println("POPULATION SIZE " + population.size());
 
             for (int idx = 0; idx < population.size(); idx++) {
                 tarantulaScore(idx);
                 mutateOperators(idx);
+                populationFitness.add(new ScoreCounter(idx, getFitness(idx)));
             }
-
 
             tournamentAndCrossover();
 
             System.out.println("Fitness " + populationFitness);
-            System.out.println("Patches " + totalPatches);
-
-
+            System.out.println("Best Fitness " + bestFitness + ", Patches " + patches.size() + ", Total Patches " + totalPatches + "\n");
 
             // Clear for next iteration
             testCount.clear();
