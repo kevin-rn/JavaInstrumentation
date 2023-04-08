@@ -28,14 +28,18 @@ public class LearningLab {
         // Implement the checks for consistent and closed in the observation table.
         // Use the observation table and the equivalence checker to implement the L* learning algorithm.
         while (!isFinished) {
-            // Do things!
-            try {
-                System.out.println("Woohoo, looping!");
-                System.exit(1);
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            // // Do things!
+            // try {
+            //     System.out.println("Woohoo, looping!");
+            //     System.exit(1);
+            //     Thread.sleep(1000);
+            // } catch (InterruptedException e) {
+            //     e.printStackTrace();
+            // }
+
+            // hypothesis = observationTable.generateHypothesis();
+            // Optional<Word<String>> counterexample = equivalenceChecker.verify(hypothesis)
+
         }
     }
 

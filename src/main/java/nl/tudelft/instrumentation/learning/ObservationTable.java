@@ -3,10 +3,12 @@ package nl.tudelft.instrumentation.learning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Map.Entry;
+
 
 /**
  * @author Bram Verboom
@@ -23,7 +25,9 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     private String[] inputSymbols;
 
+    // nonempty finite prefix-closed language S
     private List<Word<String>> S;
+    // nonempty finite suffix-closed language E
     private List<Word<String>> E;
 
     // The actual observations: a map with (S u S A) as keys where each value
@@ -45,28 +49,76 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
     }
 
     /**
-     * Method that is used for checking whether the observation table is closed
-     *
+     * Method that is used for checking whether the observation table is closed.
+     * Observation table (S, E, row) is closed if for all w ∈ S ⋅ I there is a w′ ∈ S with row(w) = row(w′).
+     * 
      * You should write your own logic here.
      *
      * @return an Optional.empty() if the table is consistent, or an Optional.of(_)
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForClosed() {
-        // TODO implement the check for closedness of the observation table.
+        for(int i = 0; i < S.size(); i++) {
+            // First prefix w
+            Word<String> w1 = S.get(i);
+            for(int j = 1; j < S.size(); j++) {
+                //Second prefix w'
+                Word<String> w2 = S.get(j);
+                for(Word<String> a : E) {
+                    // Concat first prefix with suffix for w·a
+                    Word<String> w1a = w1.append(a);
+
+                    // Get the rows corresponding to w·a and w'
+                    ArrayList<String> row1 = table.get(w1a);
+                    ArrayList<String> row2 = table.get(w2);
+
+                    // Insufficient entries for generating all possible outputs, return counterexample.
+                    if(row1.equals(row2)) {
+                        return Optional.of(w1a); //TODO: Fix generated counterexample
+                    }
+                }
+            }
+        }
         return Optional.empty();
     }
 
     /**
-     * Method that is used for checking whether the observation table is consistent
-     *
+     * Method that is used for checking whether the observation table is consistent.
+     *  Observation table (S, E, row) is consistent if whenever row(w1) = row(w2) for some w1, w2 ∈ S, then row(w1a) = row(w2a) for all a ∈ I.
+     * 
      * You should write your own logic here.
      *
      * @return an Optional.empty() if the table is consistent, or an Optional.of(_)
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForConsistent() {
-        // TODO implement the consistency check.
+        for(int i = 0; i < S.size(); i++) {
+            // First prefix
+            Word<String> w1 = S.get(i);
+            for(int j = 1; j < S.size(); j++) {
+                //Second prefix
+                Word<String> w2 = S.get(j);
+
+                // Check if prefixes are equal
+                if (w1.equals(w2)) {
+                    for(Word<String> a : E) {
+                        // w1·a and w2·a
+                        Word<String> w1a = w1.append(a);
+                        Word<String> w2a = w2.append(a);
+
+                        // Get the rows corresponding to w1·a and w2·a
+                        ArrayList<String> row1 = table.get(w1a);
+                        ArrayList<String> row2 = table.get(w2a);
+
+                        // Contradictionary entries for same inputs are found, return counterexample.
+                        if(!row1.equals(row2)) {
+                            return Optional.of(w1); //TODO: Fix generated counterexample
+                        }
+                    }
+                }
+
+            }
+        }
         return Optional.empty();
     }
 
