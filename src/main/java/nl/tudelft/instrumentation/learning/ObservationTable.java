@@ -72,9 +72,9 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
                     ArrayList<String> row1 = table.get(w1a);
                     ArrayList<String> row2 = table.get(w2);
 
-                    // Insufficient entries for generating all possible outputs, return counterexample.
-                    if(row1.equals(row2)) {
-                        return Optional.of(w1a); //TODO: Fix generated counterexample
+                    // Insufficient entries for generating all possible outputs, so the table is non-closed.
+                    if(!row1.equals(row2)) {
+                        return Optional.of(w1a); //TODO: Fix
                     }
                 }
             }
@@ -110,9 +110,9 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
                         ArrayList<String> row1 = table.get(w1a);
                         ArrayList<String> row2 = table.get(w2a);
 
-                        // Contradictionary entries for same inputs are found, return counterexample.
+                        // Contradictionary entries for same inputs are found, so the table is inconsistent.
                         if(!row1.equals(row2)) {
-                            return Optional.of(w1); //TODO: Fix generated counterexample
+                            return Optional.of(w1); //TODO: Fix 
                         }
                     }
                 }
