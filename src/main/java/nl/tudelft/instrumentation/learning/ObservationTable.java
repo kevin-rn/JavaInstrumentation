@@ -50,7 +50,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method that is used for checking whether the observation table is closed.
-     * Observation table (S, E, row) is closed if for all w ∈ S ⋅ I there is a w′ ∈ S with row(w) = row(w′).
+     * Observation table (S, E, row) is closed if for all t ∈ S ⋅ I there is a s ∈ S with row(t) = row(s).
      * 
      * You should write your own logic here.
      *
@@ -60,19 +60,27 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
     public Optional<Word<String>> checkForClosed() {
         // Loop through the table keys as these are S ⋅ I 
         for(Word<String> t : table.keySet()) {
+            boolean isDifferent = true;
+
             // Get the row corresponding to w·a
             ArrayList<String> wa = table.get(t);
 
             for(Word<String> s: S) {
                 // Get the row corresponding to w
                 ArrayList<String> w = table.get(s);
-                // Insufficient entries for generating all possible outputs, so the table is non-closed.
-                if(!wa.equals(w)) {
-                    return Optional.of(t); 
+                // Check if there exists a row(s) that is equal to row(t).
+                if(wa.equals(w)) {
+                    isDifferent = false;
                 }
+            }
+
+            // There does not exist a row(s) that is equal to row(t), so the table is non-closed.
+            if (isDifferent) {
+                return Optional.of(t);
             }
         }
 
+        // the table is closed
         return Optional.empty();
     }
 
@@ -90,11 +98,6 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
             // First prefix
             Word<String> w1 = S.get(i);
             for(int j = 0; j < S.size(); j++) {
-                // Skip for the same index positions
-                if (i == j) {
-                    continue;
-                }
-
                 //Second prefix
                 Word<String> w2 = S.get(j);
 
@@ -111,7 +114,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
                         // Contradictionary entries for same inputs are found, so the table is inconsistent.
                         if(!row1.equals(row2)) {
-                            return Optional.of(w1);
+                            return Optional.of(a);
                         }
                     }
                 }

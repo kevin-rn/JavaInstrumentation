@@ -1,5 +1,6 @@
 package nl.tudelft.instrumentation.learning;
 
+import java.security.Principal;
 import java.util.*;
 
 /**
@@ -17,8 +18,8 @@ public class LearningLab {
 
         SystemUnderLearn sul = new RersSUL();
         observationTable = new ObservationTable(LearningTracker.inputSymbols, sul);
-        equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
-        // equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 1, observationTable, observationTable);
+        // equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
+        equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 3, observationTable, observationTable);
         observationTable.print();
         MealyMachine hypothesis = observationTable.generateHypothesis();;
 
@@ -26,25 +27,25 @@ public class LearningLab {
         // Implement the checks for consistent and closed in the observation table.
         // Use the observation table and the equivalence checker to implement the L* learning algorithm.
         while (!isFinished) {
-            Optional<Word<String>> isClosed = observationTable.checkForClosed();
-            Optional<Word<String>> isConsistent = observationTable.checkForConsistent();
+            Optional<Word<String>> isNonClosed = observationTable.checkForClosed();
+            Optional<Word<String>> isInconsistent = observationTable.checkForConsistent();
 
-            if(!isClosed.isPresent()) {
+            if(isNonClosed.isPresent()) {
                 // Add as row
-                observationTable.addToS(isClosed.get());
-            } else if (!isConsistent.isPresent()) {
+                observationTable.addToS(isNonClosed.get());
+            } 
+            if (isInconsistent.isPresent()) {
                 // Add as column
-                observationTable.addToE(isConsistent.get());
-            } else {
-                observationTable.print();
+                observationTable.addToE(isInconsistent.get());
+            } 
+            
+            if(!isNonClosed.isPresent() && !isInconsistent.isPresent()) {
                 hypothesis = observationTable.generateHypothesis();
                 Optional<Word<String>> counterexample = equivalenceChecker.verify(hypothesis);
                 if(counterexample.isPresent()) {
                     // Process counterexample to get both the input and output
                     Word<String> input = counterexample.get();
                     String output = sul.getLastOutput(input);
-
-                    // TODO: Not sure if I should add this like this
                     Word<String> combine = input.append(output);
                     observationTable.addToS(combine);
                 } else {
