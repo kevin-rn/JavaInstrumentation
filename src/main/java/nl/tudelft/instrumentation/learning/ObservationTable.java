@@ -58,27 +58,21 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForClosed() {
-        for(int i = 0; i < S.size(); i++) {
-            // First prefix w
-            Word<String> w1 = S.get(i);
-            for(int j = 1; j < S.size(); j++) {
-                //Second prefix w'
-                Word<String> w2 = S.get(j);
-                for(Word<String> a : E) {
-                    // Concat first prefix with suffix for w·a
-                    Word<String> w1a = w1.append(a);
+        // Loop through the table keys as these are S ⋅ I 
+        for(Word<String> t : table.keySet()) {
+            // Get the row corresponding to w·a
+            ArrayList<String> wa = table.get(t);
 
-                    // Get the rows corresponding to w·a and w'
-                    ArrayList<String> row1 = table.get(w1a);
-                    ArrayList<String> row2 = table.get(w2);
-
-                    // Insufficient entries for generating all possible outputs, so the table is non-closed.
-                    if(!row1.equals(row2)) {
-                        return Optional.of(w1a); //TODO: Fix
-                    }
+            for(Word<String> s: S) {
+                // Get the row corresponding to w
+                ArrayList<String> w = table.get(s);
+                // Insufficient entries for generating all possible outputs, so the table is non-closed.
+                if(!wa.equals(w)) {
+                    return Optional.of(t); 
                 }
             }
         }
+
         return Optional.empty();
     }
 
@@ -95,7 +89,12 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
         for(int i = 0; i < S.size(); i++) {
             // First prefix
             Word<String> w1 = S.get(i);
-            for(int j = 1; j < S.size(); j++) {
+            for(int j = 0; j < S.size(); j++) {
+                // Skip for the same index positions
+                if (i == j) {
+                    continue;
+                }
+
                 //Second prefix
                 Word<String> w2 = S.get(j);
 
@@ -112,7 +111,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
                         // Contradictionary entries for same inputs are found, so the table is inconsistent.
                         if(!row1.equals(row2)) {
-                            return Optional.of(w1); //TODO: Fix 
+                            return Optional.of(w1);
                         }
                     }
                 }
