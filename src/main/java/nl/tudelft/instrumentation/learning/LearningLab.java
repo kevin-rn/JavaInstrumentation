@@ -18,8 +18,8 @@ public class LearningLab {
         int numQueries = 0;
         SystemUnderLearn sul = new RersSUL();
         observationTable = new ObservationTable(LearningTracker.inputSymbols, sul);
-        // equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
-        equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 3, observationTable, observationTable);
+        equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
+        //equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 3, observationTable, observationTable);
         observationTable.print();
         MealyMachine hypothesis = observationTable.generateHypothesis();;
 
@@ -27,8 +27,10 @@ public class LearningLab {
         // Implement the checks for consistent and closed in the observation table.
         // Use the observation table and the equivalence checker to implement the L* learning algorithm.
         while (!isFinished) {
-            Optional<Word<String>> isNonClosed = observationTable.checkForClosed();
-            Optional<Word<String>> isInconsistent = observationTable.checkForConsistent();
+            
+            Optional<Word<String>> isNonClosed =  observationTable.checkForClosed();
+            Optional<Word<String>> isInconsistent =  observationTable.checkForConsistent();
+
 
             if(isNonClosed.isPresent()) {
                 // Add as row
@@ -41,6 +43,7 @@ public class LearningLab {
             
             if(!isNonClosed.isPresent() && !isInconsistent.isPresent()) {
                 numQueries++;
+
                 hypothesis = observationTable.generateHypothesis();
                 Optional<Word<String>> counterexample = equivalenceChecker.verify(hypothesis);
                 if(counterexample.isPresent()) {
@@ -52,9 +55,13 @@ public class LearningLab {
                 } else {
                     // If no counterexample can be found, then we are done learning.
                     isFinished = true;
+                    break;
                 }
             }
+
+         
         }
+
         System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + numQueries);
         // observationTable.print();
         hypothesis.writeToDot("hypothesis.dot");

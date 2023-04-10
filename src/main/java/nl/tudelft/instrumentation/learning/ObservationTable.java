@@ -58,31 +58,32 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForClosed() {
-        // Loop through the table keys as these are S ⋅ I 
-        for(Word<String> t : table.keySet()) {
-            boolean isDifferent = true;
-
-            // Get the row corresponding to w·a
-            ArrayList<String> wa = table.get(t);
-
-            for(Word<String> s: S) {
-                // Get the row corresponding to w
-                ArrayList<String> w = table.get(s);
-                // Check if there exists a row(s) that is equal to row(t).
-                if(wa.equals(w)) {
-                    isDifferent = false;
+        for (int i = 0; i < S.size() - 1; i++) {
+            for (int j = i + 1; j < S.size(); j++) {
+                // Check if (s,a) is in the table
+                boolean found = false;
+    
+                Word<String> s = S.get(i);
+                Word<String> sp = S.get(j);
+    
+                Word<String> saved  = null;
+                
+                for (Word<String> e : E) {
+                    if (table.get(s.append(e)).equals(table.get(sp.append(e)))) {
+                        found = true;
+                        saved = e;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return Optional.of(s.append(saved));
                 }
             }
-
-            // There does not exist a row(s) that is equal to row(t), so the table is non-closed.
-            if (isDifferent) {
-                return Optional.of(t);
-            }
         }
-
-        // the table is closed
         return Optional.empty();
     }
+    
+    
 
     /**
      * Method that is used for checking whether the observation table is consistent.
@@ -94,31 +95,32 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForConsistent() {
-        for(int i = 0; i < S.size(); i++) {
+        for(int i = 0; i < S.size() - 1; i++) {
             // First prefix
             Word<String> w1 = S.get(i);
-            for(int j = 0; j < S.size(); j++) {
+            for(int j = i + 1; j < S.size(); j++) {
                 //Second prefix
                 Word<String> w2 = S.get(j);
-
+                
+    
                 // Check if prefixes are equal
-                if (w1.equals(w2)) {
+                if (table.get(w1).equals(table.get(w2))) {
                     for(Word<String> a : E) {
                         // w1·a and w2·a
                         Word<String> w1a = w1.append(a);
                         Word<String> w2a = w2.append(a);
-
+    
                         // Get the rows corresponding to w1·a and w2·a
                         ArrayList<String> row1 = table.get(w1a);
                         ArrayList<String> row2 = table.get(w2a);
-
+    
+    
                         // Contradictionary entries for same inputs are found, so the table is inconsistent.
                         if(!row1.equals(row2)) {
-                            return Optional.of(a);
+                            return Optional.of(w1a);
                         }
                     }
                 }
-
             }
         }
         return Optional.empty();

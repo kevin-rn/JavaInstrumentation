@@ -3,6 +3,7 @@ package nl.tudelft.instrumentation.learning;
 import java.util.Optional;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class WMethodEquivalenceChecker extends EquivalenceChecker{
 
@@ -56,7 +57,7 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker{
                     String[] realOutput = sul.getOutput(testInput);
 
                     // If these are not equal a counterexample has been found and returned.
-                    if(!modelOutput.equals(realOutput)) {
+                    if(!Arrays.equals(modelOutput, realOutput)) {
                         return Optional.of(testInput);
                     }
                 }
