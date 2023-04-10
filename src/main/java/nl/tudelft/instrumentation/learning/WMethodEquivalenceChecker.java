@@ -17,24 +17,17 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker{
         this.accessSequenceGenerator= ag;
     }
 
-    private static void generateInputSequences(String[] inputs, int W, int index, String current, List<Word<String>> inputSequences) {
-        // If sequence length reached, add current permutation to the list.
-        if (current.length() == W) {
-            Word<String> newInput = new Word<>(current.split(""));
+    private static void generateInputSequences(String[] inputs, int W, String current, List<Word<String>> inputSequences) {
+        if (W == 0) {
+            Word<String> newInput = new Word<>(current.split("(?<=\\G..)"));
             inputSequences.add(newInput);
             return;
         }
-        // If index longer than input symbols return.
-        if (index == inputs.length) {
-            return;
+
+        for (int i = 0; i < inputs.length; i++) {
+            String newWord = current + inputs[i];
+            generateInputSequences(inputs, W - 1, newWord, inputSequences);
         }
-
-        // Exclude current input to be added to current
-        generateInputSequences(inputs, W, index + 1, current, inputSequences);
-
-        // Include current input to be added to current
-        generateInputSequences(inputs, W, index + 1, current + inputs[index], inputSequences);
-
     }
 
     @Override
@@ -44,7 +37,7 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker{
 
         // Generate all possible combinations of length w from the inputsymbols.
         List<Word<String>> inputSequences = new ArrayList<>();
-        generateInputSequences(inputSymbols, w, 0, "", inputSequences);
+        generateInputSequences(inputSymbols, w, "", inputSequences);
 
         // Iterate over all access sequences
         for (Word<String> accessSequence : accessSequences) {

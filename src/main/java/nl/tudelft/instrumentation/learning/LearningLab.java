@@ -15,7 +15,7 @@ public class LearningLab {
     static EquivalenceChecker equivalenceChecker;
 
     static void run() {
-
+        int numQueries = 0;
         SystemUnderLearn sul = new RersSUL();
         observationTable = new ObservationTable(LearningTracker.inputSymbols, sul);
         // equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
@@ -40,20 +40,23 @@ public class LearningLab {
             } 
             
             if(!isNonClosed.isPresent() && !isInconsistent.isPresent()) {
+                numQueries++;
                 hypothesis = observationTable.generateHypothesis();
                 Optional<Word<String>> counterexample = equivalenceChecker.verify(hypothesis);
                 if(counterexample.isPresent()) {
                     // Process counterexample to get both the input and output
                     Word<String> input = counterexample.get();
                     String output = sul.getLastOutput(input);
-                    Word<String> combine = input.append(output);
-                    observationTable.addToS(combine);
+                    observationTable.addToS(input);
+                    observationTable.addToE(new Word<>(output));
                 } else {
                     // If no counterexample can be found, then we are done learning.
                     isFinished = true;
                 }
             }
         }
+        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + numQueries);
+        // observationTable.print();
         hypothesis.writeToDot("hypothesis.dot");
         System.exit(-1);
     }
