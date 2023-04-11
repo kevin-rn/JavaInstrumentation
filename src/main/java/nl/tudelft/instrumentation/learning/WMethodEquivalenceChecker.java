@@ -53,7 +53,7 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
                     Word<String> extendedTestInput = testInput.append(distinguishingSequence);
 
                     // Evaluate the hypothesis and the system under learning on the test input
-                    Word<String> hypothesisOutput = new Word<String>(hypothesis.getOutput(testInput));
+                    Word<String> hypothesisOutput = new Word<String>(hypothesis.getLastOutput(testInput));
                     Word<String> systemOutput = new Word<String>(sul.getLastOutput(testInput));
 
                     // If the hypothesis and the system under learning disagree on the output, a counterexample has been found
