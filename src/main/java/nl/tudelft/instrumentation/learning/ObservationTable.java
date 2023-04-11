@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Set;
 
 
 /**
@@ -58,36 +60,26 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForClosed() {
-        for (int i = 0; i < S.size() - 1; i++) {
-            for (int j = i + 1; j < S.size(); j++) {
-                // Check if (s,a) is in the table
-                boolean found = false;
+        if (table.isEmpty()) {
+            return Optional.empty();
+        }
     
-                Word<String> s = S.get(i);
-                Word<String> sp = S.get(j);
-    
-                for (Word<String> e : E) {
-                    ArrayList<String> rowS = table.get(s.append(e));
-                    ArrayList<String> rowSP = table.get(sp.append(e));
-                    if (rowS != null && rowSP != null && rowS.equals(rowSP)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    for (String symbol : inputSymbols) {
-                        Word<String> candidate = s.append(symbol);
-                        if (!table.containsKey(candidate)) {
-                            return Optional.of(candidate);
-                        }
+        Set<List<String>> seen = new HashSet<>();
+        
+        for (List<String> row : table.values()) {
+            if (!seen.contains(row)) {
+                seen.add(row);
+            } else {
+                for (Entry<Word<String>, ArrayList<String>> entry : table.entrySet()) {
+                    if (entry.getValue().equals(row)) {
+                        return Optional.of(entry.getKey());
                     }
                 }
             }
         }
+
         return Optional.empty();
     }
-    
-    
 
     /**
      * Method that is used for checking whether the observation table is consistent.
@@ -99,32 +91,31 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForConsistent() {
-        for (int i = 0; i < S.size() - 1; i++) {
-            // First prefix
-            Word<String> w1 = S.get(i);
-            for (int j = i + 1; j < S.size(); j++) {
-                // Second prefix
-                Word<String> w2 = S.get(j);
+        
+        for(Word<String> t : table.keySet()) {
+            boolean isDifferent = true;
     
-                // Check if prefixes are equal
-                if (table.get(w1).equals(table.get(w2))) {
-                    for (String symbol : inputSymbols) {
-                        Word<String> wa1 = w1.append(symbol);
-                        Word<String> wa2 = w2.append(symbol);
+            ArrayList<String> wa = table.get(t);
     
-                        // Get the rows corresponding to w1·a and w2·a
-                        ArrayList<String> row1 = table.get(wa1);
-                        ArrayList<String> row2 = table.get(wa2);
+            for(String a : inputSymbols) {
+                Word<String> waWord = t.append(a);
     
-                        if (row1 != null && row2 != null && !row1.equals(row2)) {
-                            return Optional.of(wa1);
-                        }
-                    }
+                ArrayList<String> wa2 = table.get(waWord);
+    
+                if(!wa.equals(wa2)) {
+                    isDifferent = false;
+                    break;
                 }
             }
+    
+            if (!isDifferent) {
+                return Optional.of(t);
+            }
         }
+    
         return Optional.empty();
     }
+    
 
     private String getResultFromSul(Word<String> trace) {
         String res = sul.getLastOutput(trace);
