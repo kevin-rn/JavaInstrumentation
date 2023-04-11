@@ -37,7 +37,10 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
         List<Word<String>> distinguishingSequences = distinguishingSequenceGenerator.getDistinguishingSequences();
 
         List<Word<String>> inputSequences = new ArrayList<>();
-        generateInputSequences(inputSymbols, w, new Word<>(), inputSequences);
+        
+        for (int i = 1; i <= w; i++) {
+            generateInputSequences(inputSymbols, i, new Word<>(), inputSequences);
+        }
 
         // Iterate over all access sequences
         for (Word<String> accessSequence : accessSequences) {

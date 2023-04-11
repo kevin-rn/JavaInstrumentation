@@ -3,14 +3,16 @@ package nl.tudelft.instrumentation.learning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Map.Entry;
 
+
 /**
  * @author Bram Verboom
- * The observation of the L* algorithm for learning mealy machines.
+ *         The observation of the L* algorithm for learning mealy machines.
  */
 
 public class ObservationTable implements DistinguishingSequenceGenerator, AccessSequenceGenerator {
@@ -23,7 +25,9 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     private String[] inputSymbols;
 
+    // nonempty finite prefix-closed language S
     private List<Word<String>> S;
+    // nonempty finite suffix-closed language E
     private List<Word<String>> E;
 
     // The actual observations: a map with (S u S A) as keys where each value
@@ -123,7 +127,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method that is used for adding a new prefix to S
-     *
+     * 
      * @param prefix the prefix to add to S, must be a list of symbols in the
      *               alphabet
      */
@@ -157,7 +161,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method for adding a row to the observation table.
-     * <p>
+     *
      * Adds a row to the observation table and fills it with the correct
      * observations.
      */
@@ -180,7 +184,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method to generate a {@link MealyMachine} from this observation table.
-     * <p>
+     *
      * Note: in order to generate a MealyMachine the observation table must be
      * consistent and closed. For any inconstistencies the model will create dummy
      * states.
