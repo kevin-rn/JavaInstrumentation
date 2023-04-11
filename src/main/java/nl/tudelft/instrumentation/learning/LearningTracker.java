@@ -16,6 +16,8 @@ public class LearningTracker {
     static String[] inputSymbols;
     static String currentOutput = "";
     static int current_index = 0;
+
+    static int query_count = 0;
     static List<String> outputs = new ArrayList<>();
     static ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     static CallableTraceRunner<Void> problem;
@@ -73,6 +75,7 @@ public class LearningTracker {
      * @param sequence the fuzzed sequence that needs top be run.
      */
     public static String[] runNextTrace(String[] sequence) {
+        query_count++;
         reset();
         problem.setSequence(sequence);
         currentInput = sequence;
