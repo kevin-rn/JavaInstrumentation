@@ -1,5 +1,6 @@
 package nl.tudelft.instrumentation.learning;
 
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.List;
 import java.util.ArrayList;
@@ -51,11 +52,11 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
                     Word<String> extendedTestInput = testInput.append(distinguishingSequence);
 
                     // Evaluate the hypothesis and the system under learning on the test input
-                    Word<String> hypothesisOutput = new Word<String>(hypothesis.getLastOutput(testInput));
-                    Word<String> systemOutput = new Word<String>(sul.getLastOutput(testInput));
+                    String[] hypothesisOutput = hypothesis.getOutput(testInput);
+                    String[] systemOutput = sul.getOutput(testInput);
 
                     // If the hypothesis and the system under learning disagree on the output, a counterexample has been found
-                    if (!hypothesisOutput.equals(systemOutput)) {
+                    if (!Arrays.equals(hypothesisOutput, systemOutput)) {
                         return Optional.of(extendedTestInput);
                     }
                 }
