@@ -66,17 +66,21 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
                 Word<String> s = S.get(i);
                 Word<String> sp = S.get(j);
     
-                Word<String> saved  = null;
-                
                 for (Word<String> e : E) {
-                    if (table.get(s.append(e)).equals(table.get(sp.append(e)))) {
+                    ArrayList<String> rowS = table.get(s.append(e));
+                    ArrayList<String> rowSP = table.get(sp.append(e));
+                    if (rowS != null && rowSP != null && rowS.equals(rowSP)) {
                         found = true;
-                        saved = e;
                         break;
                     }
                 }
                 if (!found) {
-                    return Optional.of(s.append(saved));
+                    for (String symbol : inputSymbols) {
+                        Word<String> candidate = s.append(symbol);
+                        if (!table.containsKey(candidate)) {
+                            return Optional.of(candidate);
+                        }
+                    }
                 }
             }
         }
@@ -95,29 +99,25 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
      *         with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForConsistent() {
-        for(int i = 0; i < S.size() - 1; i++) {
+        for (int i = 0; i < S.size() - 1; i++) {
             // First prefix
             Word<String> w1 = S.get(i);
-            for(int j = i + 1; j < S.size(); j++) {
-                //Second prefix
+            for (int j = i + 1; j < S.size(); j++) {
+                // Second prefix
                 Word<String> w2 = S.get(j);
-                
     
                 // Check if prefixes are equal
                 if (table.get(w1).equals(table.get(w2))) {
-                    for(Word<String> a : E) {
-                        // w1·a and w2·a
-                        Word<String> w1a = w1.append(a);
-                        Word<String> w2a = w2.append(a);
+                    for (String symbol : inputSymbols) {
+                        Word<String> wa1 = w1.append(symbol);
+                        Word<String> wa2 = w2.append(symbol);
     
                         // Get the rows corresponding to w1·a and w2·a
-                        ArrayList<String> row1 = table.get(w1a);
-                        ArrayList<String> row2 = table.get(w2a);
+                        ArrayList<String> row1 = table.get(wa1);
+                        ArrayList<String> row2 = table.get(wa2);
     
-    
-                        // Contradictionary entries for same inputs are found, so the table is inconsistent.
-                        if(!row1.equals(row2)) {
-                            return Optional.of(w1a);
+                        if (row1 != null && row2 != null && !row1.equals(row2)) {
+                            return Optional.of(wa1);
                         }
                     }
                 }
