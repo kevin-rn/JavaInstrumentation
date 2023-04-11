@@ -15,7 +15,6 @@ public class LearningLab {
     static EquivalenceChecker equivalenceChecker;
 
     static void run() {
-        int numQueries = 0;
         SystemUnderLearn sul = new RersSUL();
         observationTable = new ObservationTable(LearningTracker.inputSymbols, sul);
         //equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
@@ -42,8 +41,6 @@ public class LearningLab {
             isInconsistent.ifPresent(stringWord -> observationTable.addToE(stringWord));
 
             if (!isNonClosed.isPresent() && !isInconsistent.isPresent()) {
-                numQueries++;
-
                 hypothesis = observationTable.generateHypothesis();
                 Optional<Word<String>> counterexample = equivalenceChecker.verify(hypothesis);
                 if (counterexample.isPresent()) {

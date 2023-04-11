@@ -18,15 +18,14 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
         this.accessSequenceGenerator = ag;
     }
 
-    private static void generateInputSequences(String[] inputs, int W, String current, List<Word<String>> inputSequences) {
+    private static void generateInputSequences(String[] inputs, int W, Word<String> current, List<Word<String>> inputSequences) {
         if (W == 0) {
-            Word<String> newInput = new Word<>(current.split("(?<=\\G..)"));
-            inputSequences.add(newInput);
+            inputSequences.add(current);
             return;
         }
 
         for (int i = 0; i < inputs.length; i++) {
-            String newWord = current + inputs[i];
+            Word<String> newWord = current.append(inputs[i]);
             generateInputSequences(inputs, W - 1, newWord, inputSequences);
         }
     }
@@ -38,7 +37,7 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
         List<Word<String>> distinguishingSequences = distinguishingSequenceGenerator.getDistinguishingSequences();
 
         List<Word<String>> inputSequences = new ArrayList<>();
-        generateInputSequences(inputSymbols, w, "", inputSequences);
+        generateInputSequences(inputSymbols, w, new Word<>(), inputSequences);
 
         // Iterate over all access sequences
         for (Word<String> accessSequence : accessSequences) {
