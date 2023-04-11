@@ -29,7 +29,7 @@ public class LearningLab {
         // Place here your code to learn a model of the RERS problem.
         // Implement the checks for consistent and closed in the observation table.
         // Use the observation table and the equivalence checker to implement the L* learning algorithm.
-        while (!isFinished && elapsedTime < 120000) {
+        while (!isFinished && elapsedTime < 30000) {
             elapsedTime = System.currentTimeMillis() - startTime;
 
             Optional<Word<String>> isNonClosed = observationTable.checkForClosed();
