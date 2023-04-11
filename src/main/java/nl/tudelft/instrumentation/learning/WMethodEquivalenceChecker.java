@@ -36,10 +36,7 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
         List<Word<String>> distinguishingSequences = distinguishingSequenceGenerator.getDistinguishingSequences();
 
         List<Word<String>> inputSequences = new ArrayList<>();
-        
-        for (int i = 1; i <= w + 1; i++) {
-            generateInputSequences(inputSymbols, i, new Word<>(), inputSequences);
-        }
+        generateInputSequences(inputSymbols, w, new Word<>(), inputSequences);
 
         // Iterate over all access sequences
         for (Word<String> accessSequence : accessSequences) {
@@ -54,8 +51,8 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
                     Word<String> extendedTestInput = testInput.append(distinguishingSequence);
 
                     // Evaluate the hypothesis and the system under learning on the test input
-                    Word<String> hypothesisOutput = new Word<String>(hypothesis.getOutput(testInput));
-                    Word<String> systemOutput = new Word<String>(sul.getOutput(testInput));
+                    Word<String> hypothesisOutput = new Word<String>(hypothesis.getLastOutput(testInput));
+                    Word<String> systemOutput = new Word<String>(sul.getLastOutput(testInput));
 
                     // If the hypothesis and the system under learning disagree on the output, a counterexample has been found
                     if (!hypothesisOutput.equals(systemOutput)) {
