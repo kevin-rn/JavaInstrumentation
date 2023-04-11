@@ -3,7 +3,6 @@ package nl.tudelft.instrumentation.learning;
 import java.util.Optional;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class WMethodEquivalenceChecker extends EquivalenceChecker {
 
@@ -20,12 +19,12 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
 
     private static void generateInputSequences(String[] inputs, int W, Word<String> current, List<Word<String>> inputSequences) {
         if (W == 0) {
-            inputSequences.add(current);
             return;
         }
 
         for (int i = 0; i < inputs.length; i++) {
             Word<String> newWord = current.append(inputs[i]);
+            inputSequences.add(newWord);
             generateInputSequences(inputs, W - 1, newWord, inputSequences);
         }
     }
@@ -41,7 +40,7 @@ public class WMethodEquivalenceChecker extends EquivalenceChecker {
 
         // Iterate over all access sequences
         for (Word<String> accessSequence : accessSequences) {
-            // Iterate over all words of length w over the input symbols
+            // Iterate over all words of max length w over the input symbols
             for (Word<String> word : inputSequences) {
                 // Build the test input
                 Word<String> testInput = accessSequence.append(word);
