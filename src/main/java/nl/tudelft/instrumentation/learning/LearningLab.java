@@ -32,14 +32,10 @@ public class LearningLab {
             Optional<Word<String>> isInconsistent =  observationTable.checkForConsistent();
 
 
-            if(isNonClosed.isPresent()) {
-                // Add as row
-                observationTable.addToS(isNonClosed.get());
-            } 
-            if (isInconsistent.isPresent()) {
-                // Add as column
-                observationTable.addToE(isInconsistent.get());
-            } 
+            // Add as row
+            isNonClosed.ifPresent(stringWord -> observationTable.addToS(stringWord));
+            // Add as column
+            isInconsistent.ifPresent(stringWord -> observationTable.addToE(stringWord));
             
             if(!isNonClosed.isPresent() && !isInconsistent.isPresent()) {
                 numQueries++;
@@ -58,7 +54,6 @@ public class LearningLab {
                     break;
                 }
             }
-
          
         }
 

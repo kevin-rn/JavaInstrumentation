@@ -3,18 +3,14 @@ package nl.tudelft.instrumentation.learning;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Map.Entry;
-import java.util.Set;
-
 
 /**
  * @author Bram Verboom
- *         The observation of the L* algorithm for learning mealy machines.
+ * The observation of the L* algorithm for learning mealy machines.
  */
 
 public class ObservationTable implements DistinguishingSequenceGenerator, AccessSequenceGenerator {
@@ -27,9 +23,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     private String[] inputSymbols;
 
-    // nonempty finite prefix-closed language S
     private List<Word<String>> S;
-    // nonempty finite suffix-closed language E
     private List<Word<String>> E;
 
     // The actual observations: a map with (S u S A) as keys where each value
@@ -51,71 +45,74 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
     }
 
     /**
-     * Method that is used for checking whether the observation table is closed.
-     * Observation table (S, E, row) is closed if for all t ∈ S ⋅ I there is a s ∈ S with row(t) = row(s).
-     * 
+     * Method that is used for checking whether the observation table is closed
+     * <p>
      * You should write your own logic here.
      *
      * @return an Optional.empty() if the table is consistent, or an Optional.of(_)
-     *         with something usefull to extend the observation table with.
+     * with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForClosed() {
-        if (table.isEmpty()) {
-            return Optional.empty();
-        }
-    
-        Set<List<String>> seen = new HashSet<>();
-        
-        for (List<String> row : table.values()) {
-            if (!seen.contains(row)) {
-                seen.add(row);
-            } else {
-                for (Entry<Word<String>, ArrayList<String>> entry : table.entrySet()) {
-                    if (entry.getValue().equals(row)) {
-                        return Optional.of(entry.getKey());
-                    }
+        for (Word<String> key : table.keySet()) {
+            boolean flag = true;
+            ArrayList<String> wa = table.get(key);
+
+            for (Word<String> s : S) {
+                ArrayList<String> w = table.get(s);
+
+                if (wa.equals(w)) {
+                    flag = false;
+                    break;
                 }
             }
-        }
 
+            if (flag) {
+                return Optional.of(key);
+            }
+        }
         return Optional.empty();
     }
 
     /**
-     * Method that is used for checking whether the observation table is consistent.
-     *  Observation table (S, E, row) is consistent if whenever row(w1) = row(w2) for some w1, w2 ∈ S, then row(w1a) = row(w2a) for all a ∈ I.
-     * 
+     * Method that is used for checking whether the observation table is consistent
+     * <p>
      * You should write your own logic here.
      *
      * @return an Optional.empty() if the table is consistent, or an Optional.of(_)
-     *         with something usefull to extend the observation table with.
+     * with something usefull to extend the observation table with.
      */
     public Optional<Word<String>> checkForConsistent() {
-        
-        for(Word<String> t : table.keySet()) {
-            boolean isDifferent = true;
-    
-            ArrayList<String> wa = table.get(t);
-    
-            for(String a : inputSymbols) {
-                Word<String> waWord = t.append(a);
-    
-                ArrayList<String> wa2 = table.get(waWord);
-    
-                if(!wa.equals(wa2)) {
-                    isDifferent = false;
-                    break;
+        // For each pair of distinct elements s1 and s2 in S
+        for (int i = 0; i < S.size(); i++) {
+            for (int j = i + 1; j < S.size(); j++) {
+                Word<String> s1 = S.get(i);
+                Word<String> s2 = S.get(j);
+
+                // Check if the rows for s1 and s2 are equal
+                if (table.get(s1).equals(table.get(s2))) {
+
+                    // For each input symbol a in A
+                    for (String a : inputSymbols) {
+                        Word<String> s1a = s1.append(a);
+                        Word<String> s2a = s2.append(a);
+
+                        // For each output symbol e in E
+                        for (Word<String> e : E) {
+                            String t1 = table.get(s1a).get(E.indexOf(e));
+                            String t2 = table.get(s2a).get(E.indexOf(e));
+
+                            // If T(s1·a·e) is not equal to T(s2·a·e)
+                            if (!t1.equals(t2)) {
+                                return Optional.of(new Word<>(a).append(e));
+                            }
+                        }
+                    }
                 }
             }
-    
-            if (!isDifferent) {
-                return Optional.of(t);
-            }
         }
-    
         return Optional.empty();
     }
-    
+
 
     private String getResultFromSul(Word<String> trace) {
         String res = sul.getLastOutput(trace);
@@ -125,7 +122,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method that is used for adding a new prefix to S
-     * 
+     *
      * @param prefix the prefix to add to S, must be a list of symbols in the
      *               alphabet
      */
@@ -159,7 +156,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method for adding a row to the observation table.
-     *
+     * <p>
      * Adds a row to the observation table and fills it with the correct
      * observations.
      */
@@ -182,7 +179,7 @@ public class ObservationTable implements DistinguishingSequenceGenerator, Access
 
     /**
      * Method to generate a {@link MealyMachine} from this observation table.
-     *
+     * <p>
      * Note: in order to generate a MealyMachine the observation table must be
      * consistent and closed. For any inconstistencies the model will create dummy
      * states.
