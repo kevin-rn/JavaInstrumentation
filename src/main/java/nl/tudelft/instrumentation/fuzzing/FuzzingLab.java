@@ -273,13 +273,13 @@ public class FuzzingLab {
                     hasBetterTrace = false;
                 }
 
-                System.out.print("Trace: ");
-                currentTrace.forEach(System.out::print);
-                System.out.println("\n");
+                // System.out.print("Trace: ");
+                // currentTrace.forEach(System.out::print);
+                // System.out.println("\n");
 
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
-                System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+                // System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
 
                 double newNormdistance = newDistance / (newDistance + visited.size());
                 // Select the most optimal Trace that has a lower computed normalised sum of branches compared to previous best found Trace
@@ -293,10 +293,10 @@ public class FuzzingLab {
                 }
 
                 // Print every x amount of time
-                // if (timer + elapse <= System.nanoTime()) {
-                //     timer += elapse;
-                    // System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
-                // }
+                if (timer + elapse <= System.nanoTime()) {
+                    timer += elapse;
+                    System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+                }
 
                 // Reset values for next iteration
                 visited.clear();
