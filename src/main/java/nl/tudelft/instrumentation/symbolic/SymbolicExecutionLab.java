@@ -21,10 +21,13 @@ public class SymbolicExecutionLab {
     static int visitedBranches = 0;
     static boolean isSatisfiable = false;
 
+    // Store unsatisfiable traces
     static Set<BoolExpr> unsatisfied = new HashSet<>();
-    static Set<String> visited = new HashSet<>();           // Store Line_nr + value
-    static Set<String> totalVisited = new HashSet<>();           // Store Line_nr + value
-    static Set<String> output = new HashSet<>();            // Store error codes
+    // Store visited branches
+    static Set<List<String>> visited = new HashSet<>();
+    static Set<List<String>> totalVisited = new HashSet<>();
+    // Store error codes
+    static Set<String> output = new HashSet<>();
     static Set<List<String>> usedTraces = new HashSet<>();
 
     static PriorityQueue<List<String>> queue = new PriorityQueue<>(new Comparator<List<String>>() {
@@ -57,14 +60,15 @@ public class SymbolicExecutionLab {
     static MyVar createInput(String name, Expr value, Sort s) {
         // Create a free variable
         Context c = PathTracker.ctx;
-        Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
+        String newName = name + "_" + PathTracker.z3counter++;
+        Expr z3var = c.mkConst(c.mkSymbol(newName), s);
 
         BoolExpr constraint = c.mkFalse();
         for (String input : PathTracker.inputSymbols) {
             constraint = c.mkOr(c.mkEq(z3var, c.mkString(input)), constraint);
         }
         PathTracker.addToModel(constraint);
-        MyVar input = new MyVar(z3var, name);
+        MyVar input = new MyVar(z3var, newName);
         PathTracker.inputs.add(input);
 
         return input;
@@ -180,7 +184,7 @@ public class SymbolicExecutionLab {
         // All variable assignments, use single static assignment
         Context c = PathTracker.ctx;
         Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
-        var.z3var = value;
+        var.z3var = z3var;
         PathTracker.addToModel(c.mkEq(z3var, value));
     }
 
@@ -188,11 +192,15 @@ public class SymbolicExecutionLab {
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
         // Skip branch if already visited
         String branch_nr = line_nr + "-" + value;
-        if (visited.contains(branch_nr)) {
+
+        List<String> traceBranch = new ArrayList<>(currentTrace);
+        traceBranch.add(branch_nr);
+
+        if (visited.contains(traceBranch)) {
             return;
         }
-        visited.add(branch_nr);
-        totalVisited.add(branch_nr);
+        visited.add(traceBranch);
+        totalVisited.add(traceBranch);
 
         // Call the solver
         Context c = PathTracker.ctx;
