@@ -10,7 +10,7 @@ public class FuzzingLab {
     static Random r = new Random();
     static List<String> currentTrace;
     static List<String> bestTrace;
-    static int traceLength = 10;
+    static int traceLength = 20;
     static boolean isFinished = false;
     static boolean hasBetterTrace = false;
     static final double K = 1.0;
@@ -23,7 +23,6 @@ public class FuzzingLab {
     static Set<String> totalVisited = new HashSet<>();
 
     static double smallestNormDistance = Double.MAX_VALUE;
-    static double totalDistance = Double.MAX_VALUE;
     static Set<String> output = new HashSet<>();
 
     static void initialize(String[] inputSymbols) {
@@ -203,33 +202,39 @@ public class FuzzingLab {
      * @return a fuzzed sequence
      */
     static List<String> fuzz(String[] inputSymbols, boolean hasBetterTrace) throws InterruptedException {
+        // If no better trace has been found, use randomly generated trace.
         if (hasBetterTrace) {
+
             // Generate multiple permutations of the current best trace.
             HashSet<List<String>> generated = new HashSet<>();
             while (generated.size() < permutationTotal) {
-
-                // Copy best trace
-                List<String> newTrace = new ArrayList<>(bestTrace);
-
-                // Generate random symbol and random position
-                String randomSymbol = inputSymbols[r.nextInt(inputSymbols.length)];
-                int randomPosition = r.nextInt(newTrace.size());
-                int randomNum = r.nextInt(3);
-
-                // Perform random mutation: Replace, Addition or Deletion
-                if(randomNum == 2) {
-                    // Replace symbol at random position
-                    newTrace.set(randomPosition, randomSymbol);
-                } else if (randomNum == 1) {
-                    // Add symbol at random position
-                    newTrace.add(randomPosition, randomSymbol);
+                // 1/4 chance of adding a random trace as to not get stuck in local optimum.
+                if(r.nextDouble() >= 0.75) {
+                    generated.add(generateRandomTrace(inputSymbols));
                 } else {
-                    // Delete symbol at random position
-                    newTrace.remove(randomPosition);
-                }
+                    // Copy best trace
+                    List<String> newTrace = new ArrayList<>(bestTrace);
 
-                // Add mutated trace to the list
-                generated.add(newTrace);
+                    // Perform random mutation: Replace, Addition or Deletion
+                    if(r.nextDouble() >= 0.33 ) {
+                        // Generate random symbol and random position
+                        String randomSymbol = inputSymbols[r.nextInt(inputSymbols.length)];
+
+                        // Replace symbol at random position
+                        newTrace.set(r.nextInt(newTrace.size()), randomSymbol);
+                    }
+                    if (r.nextDouble() >= 0.5) {
+                        // Add symbol at random position
+                        newTrace.add(newTrace.get(r.nextInt(newTrace.size())));
+                    } 
+                    if (r.nextDouble() >= 0.66) {
+                        // Delete symbol at random position
+                        newTrace.remove(r.nextInt(newTrace.size()));
+                    }
+
+                    // Add mutated trace to the list
+                    generated.add(newTrace);
+                }
             }
             // Update fuzzed traces
             fuzz_traces = new ArrayList<>(generated);
@@ -254,22 +259,20 @@ public class FuzzingLab {
     }
 
     static void run() {
-        
-        initialize(DistanceTracker.inputSymbols);
-        List<List<String>> fuzz_traces = new ArrayList<>();
-        
+        initialize(DistanceTracker.inputSymbols);                
+
         // Run for 5 minutes.
         long timer = System.nanoTime();
-        long elapse = TimeUnit.NANOSECONDS.convert(10L, TimeUnit.SECONDS);
+        long elapse = TimeUnit.NANOSECONDS.convert(20L, TimeUnit.SECONDS);
         long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5L, TimeUnit.MINUTES);
-
+        System.out.println("Total visited branches: " + totalVisited.size()  + "\nOutput size: " + output.size());
         while (!isFinished && System.nanoTime() < endTime) {
             try {
                 if (!fuzz_traces.isEmpty()) {
                     currentTrace = fuzz_traces.remove(0);
                 } else {
-                    // currentTrace = fuzz(DistanceTracker.inputSymbols, false);           // Random Fuzzing
-                    currentTrace = fuzz(DistanceTracker.inputSymbols, hasBetterTrace);     // Hill-Climbing
+                    // currentTrace = fuzz(DistanceTracker.inputSymbols, false);           // Random Fuzzer
+                    currentTrace = fuzz(DistanceTracker.inputSymbols, hasBetterTrace);     // Hill-Climber
                     hasBetterTrace = false;
                 }
 
@@ -279,31 +282,28 @@ public class FuzzingLab {
 
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
 
-                // System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
-
-                double newNormdistance = newDistance / (newDistance + visited.size());
+                double newNormdistance = newDistance / (double) visited.size();
                 // Select the most optimal Trace that has a lower computed normalised sum of branches compared to previous best found Trace
                 if (newNormdistance < smallestNormDistance) {
                     // Set new lower sum of distances to be the total
-                    totalDistance = newDistance;
                     smallestNormDistance = newNormdistance;
                     // Keep track of best trace found so far
                     bestTrace = currentTrace;
                     hasBetterTrace = true;
                 }
 
-                // Print every x amount of time
-                if (timer + elapse <= System.nanoTime()) {
+                 // Print every x amount of time
+                // System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+
+                 if (timer + elapse <= System.nanoTime()) {
                     timer += elapse;
-                    System.out.println("Total visited branches: " + totalVisited.size() + "\nOutput: " + output + "\nOutput size: " + output.size());
+                    System.out.println("Total visited branches: " + totalVisited.size()  + "\nOutput size: " + output.size());
                 }
 
-                // Reset values for next iteration
+                // Reset values for this iteration
                 visited.clear();
                 newDistance = 0;
 
-            //     System.out.println("Woohoo, looping!");
-            //     Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

@@ -16,7 +16,7 @@ public class SymbolicExecutionLab {
     static Random r = new Random();
     static Boolean isFinished = false;
     static List<String> currentTrace;
-    static int traceLength = 10;
+    static int traceLength = 20;
 
     static int visitedBranches = 0;
     static boolean isSatisfiable = false;
@@ -81,9 +81,7 @@ public class SymbolicExecutionLab {
         if (operator.contains("!")) {
             return new MyVar(c.mkNot(var));
         } else {
-            System.out.println("Error: expected (!) but got: " + operator);
-            // return new MyVar(c.mkFalse());
-            return null;
+            throw new RuntimeException("Error: expected (!) but got: " + operator);
         }
     }
 
@@ -101,8 +99,7 @@ public class SymbolicExecutionLab {
                 z3var = c.mkAnd(left_var, right_var);
                 break;
             default:
-                System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
-                return null;
+                throw new RuntimeException("Error: expected (&, &&, |, ||) but got: " + operator);
         }
         return new MyVar(z3var);
     }
@@ -117,8 +114,7 @@ public class SymbolicExecutionLab {
         } else if (operator.equals("+") || operator.equals("")) {
             return new MyVar(var);
         } else {
-            System.out.println("Error: expected (-, +) but got: " + operator);
-            return null;
+            throw new RuntimeException("Error: expected (-, +) but got: " + operator);
         }
     }
 
@@ -163,8 +159,7 @@ public class SymbolicExecutionLab {
                 z3var = c.mkGe(left_var, right_var);
                 break;
             default:
-                System.out.println("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
-                return null;
+                throw new RuntimeException("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
         }
         return new MyVar(z3var);
     }
@@ -175,8 +170,7 @@ public class SymbolicExecutionLab {
         if (operator.equals("==")) {
             return new MyVar(c.mkEq(left_var, right_var));
         } else {
-            // return new MyVar(c.mkFalse());
-            return null;
+            throw new RuntimeException("Error: expected string expression but got: " + operator);
         }
     }
 
@@ -234,15 +228,16 @@ public class SymbolicExecutionLab {
         //System.out.println("FOUND NEW SAT");
         isSatisfiable = true;
 
-        // Remove symbols (e.g. quotations, commas, etc.).
-        List<String> inputs = new_inputs.stream().map(x -> x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "")).collect(Collectors.toList());
+        // Remove extra quotes.
+        List<String> inputs = new_inputs.stream().map(x -> x.replace("\"", "")).collect(Collectors.toList());
+        queue.add(inputs);
 
         // Mutate trace by adding a random symbol for deeper exploration.
         String[] symbols = PathTracker.inputSymbols;
         inputs.add(symbols[r.nextInt(symbols.length)]);
 
-        // Add new input trace to the queue if its not already there or its already run.
-        if (!queue.contains(inputs) && !usedTraces.contains(inputs)) {
+        // Add new input trace to the queue if its not already there
+        if (!queue.contains(inputs)) {
             queue.add(inputs);
         }
     }
@@ -264,7 +259,6 @@ public class SymbolicExecutionLab {
          */
 
         if (queue.isEmpty()) {
-            System.out.print("Random ");
             // Generate random trace when the queue is empty
             return generateRandomTrace(inputSymbols);
         } else {
@@ -288,7 +282,6 @@ public class SymbolicExecutionLab {
 
     static void run() {
         initialize(PathTracker.inputSymbols);
-        int count = 0;
 
         // Run for 5 minutes.
         long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5L, TimeUnit.MINUTES);
@@ -308,20 +301,6 @@ public class SymbolicExecutionLab {
             usedTraces.add(currentTrace);
 
             PathTracker.reset();
-
-            //DEBUG CODE
-            // if (count++ == 5000) {
-            //     isFinished = true;
-            // }
-
-            //System.out.println(output);
-            // // Do things!
-            // try {
-            //     System.out.println("Woohoo, looping!");
-            //     Thread.sleep(1000);
-            // } catch (InterruptedException e) {
-            //     e.printStackTrace();
-            // }
         }
         System.exit(-1);
     }
