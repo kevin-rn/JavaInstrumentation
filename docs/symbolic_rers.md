@@ -320,3 +320,76 @@ Found 3 unique errors
 Read more on the features of KLEE at: http://klee.github.io/docs/. Happy bug hunting.
 
 https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/ is also well-worth checking out.
+
+______
+# Summary:
+
+
+Note: One can skip the next two steps and use the `JAvaInstrumentation/src/main/resources/RERS_KLEE` folders instead, but make sure to adjust to the right folder directory in the below commands.
+1. Inside the RERS problem folder (/home/src/RERS/), replace for each ProblemX.c file:
+    ```C
+    extern void __VERIFIER_error(int);
+    ``` 
+    with
+    ```C
+    #include <klee/klee.h>
+
+    void __VERIFIER_error(int i) {
+        fprintf(stderr, "error_%d ", i);
+        assert(0);
+    }
+    ```
+2. Make input symbolic by replacing for each ProblemX.c file like:
+
+    ```C++
+    int main()
+    {
+        // main i/o-loop
+        while(1)
+        {
+            // read input
+            int input;
+            scanf("%d", &input);        
+            // operate eca engine
+            if((input != 2) && (input != 5) && (input != 3) && (input != 1) && (input != 4))
+            return -2;
+            calculate_output(input);
+        }
+    }
+    ```
+
+    with, e.g.,:
+
+    ```C++
+    int main()
+    {
+        int length = 20;
+        int program[length];
+        klee_make_symbolic(program, sizeof(program), "program");
+
+        // main i/o-loop
+        for (int i = 0; i < length; ++i) {
+            // read input
+            int input = program[i];
+        if((input != 1) && (input != 2) && (input != 3) && (input != 4) && (input != 5)) return 0;
+            // operate eca engine
+            calculate_output(input);
+        }
+    }
+    ```
+
+3. Create output folders inside the problem folders.
+4. Go into the /home/src/klee directory and compile the problem, for example Problem11:
+    ```console
+    $ clang-6.0 -I include -emit-llvm -g -c ../RERS/Problem11/Problem11.c -o ../RERS/Problem11/output/Problem11.bc
+    ```
+Note: if the error `KLEE: ERROR: Loading file /root/klee/build/Debug+Asserts/lib/libkleeRuntimeFreeStanding.bca failed: No such file or directory` is encountered. Delete the `/home/src/klee/build/CMakeCache.txt` file and run:
+
+    ```console
+    $ cmake .. -DLLVM_CONFIG_BINARY=/usr/bin/llvm-config-6.0 -DLLVMCC=/usr/bin/clang-6.0 -DLLVMCXX=/usr/bin/clang++-6.0 -DENABLE_UNIT_TESTS=OFF -DENABLE_SYSTEM_TESTS=OFF && make -j `nproc`
+    ```
+
+5. Run klee on the binary and when stopped it will output a summary of the triggered errors:
+    ```console
+    $ build/bin/klee ../RERS/Problem11/output/Problem11.bc 2>&1 | python3 ../JavaInstrumentation/scripts/analyze_klee_live.py
+    ```

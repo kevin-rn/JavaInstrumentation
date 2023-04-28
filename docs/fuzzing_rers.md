@@ -653,7 +653,77 @@ error_95 found in 4.03s
 Found 4 unique errors in "./afl/afl/11/findings"
 ```
 
-
-
 In this way, and some extra tricks, we obtained third place in the reachability category of the RERS 2016 challenge: http://rers-challenge.org/2016/index.php?page=results. We are team Radboud (together with PhD students from Radboud university), for some reason they still did not update the names. We wrote a paper describing our approach (including learning which you will learn later in this course), which is available at https://arxiv.org/pdf/1611.02429.pdf. Please take a look if you are interested.
 AFL can reach quite some errors, but to compete in the 2020 challenge we expect combinations will be required with learning, mutation, tainting, and concolic execution.
+
+________
+
+# Summary:
+Note: One can skip the next 4 steps and use the `JavaInstrumentation/src/main/resources/RERS_AFL` folder instead, but make sure to adjust to the right folder directory in the below commands.
+1. Go to the RERS folders (`/home/str/RERS/`) and replace for each ProblemX.c file: 
+	```C++
+	extern void __VERIFIER_error(int);
+	```
+	with:
+
+	```C++
+	void __VERIFIER_error(int i) {
+		fprintf(stderr, "error_%d ", i);
+		assert(0);
+	}
+	```
+
+2. Modify the `Main` function in each of the ProblemX.c files.
+	```C++
+	int main()
+	{
+		// main i/o-loop
+		while(1)
+		{
+			// read input
+			int input;
+			scanf("%d", &input);        
+			// operate eca engine
+			if((input != 4) && (input != 3) && (input != 10) && (input != 2) && (input != 9) && (input != 6) && (input != 1) && (input != 8) && (input != 7) && (input != 5))
+			return -2;
+			calculate_output(input);
+		}
+	}
+	```
+
+	with:
+
+	```C++
+	int main()
+	{
+		// main i/o-loop
+		while(1)
+		{
+			// read input
+			int input = 0;
+			int ret = scanf("%d", &input);
+			if (ret != 1) return 0;        
+			// operate eca engine
+			if((input != 4) && (input != 3) && (input != 10) && (input != 2) && (input != 9) && (input != 6) && (input != 1) && (input != 8) && (input != 7) && (input != 5))
+			return -2;
+			calculate_output(input);
+		}
+	}
+	```
+3. Create `findings` and `tests` folders, for example inside the Problem folders themselves.
+4. Create inputs txt file as shown in the 1.txt example. The inputs are the at the top of the c file (numeric where each numeric ID corresponds to a character in the java file)
+5. Compile the problem file into a binary file, for example:
+	```
+	$ ../AFL/afl-2.52b/afl-gcc ../RERS/Problem11/Problem11.c -o ../RERS/Problem11/Problem11
+	```
+Note: these commands are to be run when inside JavaInstrumentation (`/home/str/JavaInstrumentation`)
+
+6. Run AFL on the obtained binary file, for example:
+	```C
+	$ ../AFL/afl-2.52b/afl-fuzz -i ../RERS/Problem11/tests -o ../RERS/Problem11/findings ../RERS/Problem11/Problem11
+	```
+7. Analyse the results in the findings folder of the problem, for example using the provided python script:
+	```C
+	$ scripts/analyze_afl.py ../RERS/Problem11/findings/ ../RERS/Problem11/Problem11
+	```
+

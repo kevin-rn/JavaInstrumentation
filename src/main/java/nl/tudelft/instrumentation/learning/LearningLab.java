@@ -14,11 +14,23 @@ public class LearningLab {
     static ObservationTable observationTable;
     static EquivalenceChecker equivalenceChecker;
 
+    public static void runLearnLib() {
+        LearnLibRunner llr = new LearnLibRunner();
+        llr.start(3);
+        }
+
     static void run() {
+
+        runLearnLib();
+        int membQueryLearnLib = 0;
+        membQueryLearnLib = LearningTracker.query_count;
+        LearningTracker.query_count = 0;
+
+
         SystemUnderLearn sul = new RersSUL();
         observationTable = new ObservationTable(LearningTracker.inputSymbols, sul);
         //equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
-        equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 4, observationTable, observationTable);
+        equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 3, observationTable, observationTable);
         observationTable.print();
         MealyMachine hypothesis = observationTable.generateHypothesis();
 
@@ -28,7 +40,8 @@ public class LearningLab {
         // Place here your code to learn a model of the RERS problem.
         // Implement the checks for consistent and closed in the observation table.
         // Use the observation table and the equivalence checker to implement the L* learning algorithm.
-        while (!isFinished && elapsedTime < 30000) {
+        while (!isFinished && elapsedTime < 80000 * 3) {
+            hypothesis = observationTable.generateHypothesis();
             elapsedTime = System.currentTimeMillis() - startTime;
 
             Optional<Word<String>> isNonClosed = observationTable.checkForClosed();
@@ -44,16 +57,12 @@ public class LearningLab {
                 hypothesis = observationTable.generateHypothesis();
                 Optional<Word<String>> counterexample = equivalenceChecker.verify(hypothesis);
                 if (counterexample.isPresent()) {
-                    // Process counterexample to get both the input and output
-                    Word<String> input = counterexample.get();
-                    String output = sul.getLastOutput(input);
-
-                    if (output.equals("invalid")) {
-                        continue;
+                    // Process counterexample and their sublists.
+                    List<String> counter = counterexample.get().asList();
+                    for(int c = 0; c < counter.size(); c++) {
+                        Word<String> input = new Word<String>(counter.subList(0, c+1));
+                        observationTable.addToS(input);
                     }
-
-                    observationTable.addToS(input);
-                    observationTable.addToE(new Word<>(output));
                 } else {
                     // If no counterexample can be found, then we are done learning.
                     isFinished = true;
@@ -63,7 +72,7 @@ public class LearningLab {
 
         }
 
-        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + LearningTracker.query_count);
+        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + LearningTracker.query_count + " LEARNLIB MEMBERSHIP: " + membQueryLearnLib);
         // observationTable.print();
         hypothesis.writeToDot("hypothesis.dot");
         System.exit(-1);

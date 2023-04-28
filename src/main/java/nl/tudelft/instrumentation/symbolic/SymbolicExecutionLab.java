@@ -16,15 +16,18 @@ public class SymbolicExecutionLab {
     static Random r = new Random();
     static Boolean isFinished = false;
     static List<String> currentTrace;
-    static int traceLength = 10;
+    static int traceLength = 20;
 
     static int visitedBranches = 0;
     static boolean isSatisfiable = false;
 
+    // Store unsatisfiable traces
     static Set<BoolExpr> unsatisfied = new HashSet<>();
-    static Set<String> visited = new HashSet<>();           // Store Line_nr + value
-    static Set<String> totalVisited = new HashSet<>();           // Store Line_nr + value
-    static Set<String> output = new HashSet<>();            // Store error codes
+    // Store visited branches
+    static Set<List<String>> visited = new HashSet<>();
+    static Set<List<String>> totalVisited = new HashSet<>();
+    // Store error codes
+    static Set<String> output = new HashSet<>();
     static Set<List<String>> usedTraces = new HashSet<>();
 
     static PriorityQueue<List<String>> queue = new PriorityQueue<>(new Comparator<List<String>>() {
@@ -57,14 +60,15 @@ public class SymbolicExecutionLab {
     static MyVar createInput(String name, Expr value, Sort s) {
         // Create a free variable
         Context c = PathTracker.ctx;
-        Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
+        String newName = name + "_" + PathTracker.z3counter++;
+        Expr z3var = c.mkConst(c.mkSymbol(newName), s);
 
         BoolExpr constraint = c.mkFalse();
         for (String input : PathTracker.inputSymbols) {
             constraint = c.mkOr(c.mkEq(z3var, c.mkString(input)), constraint);
         }
         PathTracker.addToModel(constraint);
-        MyVar input = new MyVar(z3var, name);
+        MyVar input = new MyVar(z3var, newName);
         PathTracker.inputs.add(input);
 
         return input;
@@ -77,9 +81,7 @@ public class SymbolicExecutionLab {
         if (operator.contains("!")) {
             return new MyVar(c.mkNot(var));
         } else {
-            System.out.println("Error: expected (!) but got: " + operator);
-            // return new MyVar(c.mkFalse());
-            return null;
+            throw new RuntimeException("Error: expected (!) but got: " + operator);
         }
     }
 
@@ -97,8 +99,7 @@ public class SymbolicExecutionLab {
                 z3var = c.mkAnd(left_var, right_var);
                 break;
             default:
-                System.out.println("Error: expected (&, &&, |, ||) but got: " + operator);
-                return null;
+                throw new RuntimeException("Error: expected (&, &&, |, ||) but got: " + operator);
         }
         return new MyVar(z3var);
     }
@@ -113,8 +114,7 @@ public class SymbolicExecutionLab {
         } else if (operator.equals("+") || operator.equals("")) {
             return new MyVar(var);
         } else {
-            System.out.println("Error: expected (-, +) but got: " + operator);
-            return null;
+            throw new RuntimeException("Error: expected (-, +) but got: " + operator);
         }
     }
 
@@ -159,8 +159,7 @@ public class SymbolicExecutionLab {
                 z3var = c.mkGe(left_var, right_var);
                 break;
             default:
-                System.out.println("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
-                return null;
+                throw new RuntimeException("Error: expected binary expression (==, <, /, etc.) but got: " + operator);
         }
         return new MyVar(z3var);
     }
@@ -171,8 +170,7 @@ public class SymbolicExecutionLab {
         if (operator.equals("==")) {
             return new MyVar(c.mkEq(left_var, right_var));
         } else {
-            // return new MyVar(c.mkFalse());
-            return null;
+            throw new RuntimeException("Error: expected string expression but got: " + operator);
         }
     }
 
@@ -180,7 +178,7 @@ public class SymbolicExecutionLab {
         // All variable assignments, use single static assignment
         Context c = PathTracker.ctx;
         Expr z3var = c.mkConst(c.mkSymbol(name + "_" + PathTracker.z3counter++), s);
-        var.z3var = value;
+        var.z3var = z3var;
         PathTracker.addToModel(c.mkEq(z3var, value));
     }
 
@@ -188,11 +186,15 @@ public class SymbolicExecutionLab {
     static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
         // Skip branch if already visited
         String branch_nr = line_nr + "-" + value;
-        if (visited.contains(branch_nr)) {
+
+        List<String> traceBranch = new ArrayList<>(currentTrace);
+        traceBranch.add(branch_nr);
+
+        if (visited.contains(traceBranch)) {
             return;
         }
-        visited.add(branch_nr);
-        totalVisited.add(branch_nr);
+        visited.add(traceBranch);
+        totalVisited.add(traceBranch);
 
         // Call the solver
         Context c = PathTracker.ctx;
@@ -226,15 +228,16 @@ public class SymbolicExecutionLab {
         //System.out.println("FOUND NEW SAT");
         isSatisfiable = true;
 
-        // Remove symbols (e.g. quotations, commas, etc.).
-        List<String> inputs = new_inputs.stream().map(x -> x.replace(",", "").replace(" ", "").replace("\"", "").replace("[", "").replace("]", "")).collect(Collectors.toList());
+        // Remove extra quotes.
+        List<String> inputs = new_inputs.stream().map(x -> x.replace("\"", "")).collect(Collectors.toList());
+        queue.add(inputs);
 
         // Mutate trace by adding a random symbol for deeper exploration.
         String[] symbols = PathTracker.inputSymbols;
         inputs.add(symbols[r.nextInt(symbols.length)]);
 
-        // Add new input trace to the queue if its not already there or its already run.
-        if (!queue.contains(inputs) && !usedTraces.contains(inputs)) {
+        // Add new input trace to the queue if its not already there
+        if (!queue.contains(inputs)) {
             queue.add(inputs);
         }
     }
@@ -256,7 +259,6 @@ public class SymbolicExecutionLab {
          */
 
         if (queue.isEmpty()) {
-            System.out.print("Random ");
             // Generate random trace when the queue is empty
             return generateRandomTrace(inputSymbols);
         } else {
@@ -280,7 +282,6 @@ public class SymbolicExecutionLab {
 
     static void run() {
         initialize(PathTracker.inputSymbols);
-        int count = 0;
 
         // Run for 5 minutes.
         long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5L, TimeUnit.MINUTES);
@@ -300,20 +301,6 @@ public class SymbolicExecutionLab {
             usedTraces.add(currentTrace);
 
             PathTracker.reset();
-
-            //DEBUG CODE
-            // if (count++ == 5000) {
-            //     isFinished = true;
-            // }
-
-            //System.out.println(output);
-            // // Do things!
-            // try {
-            //     System.out.println("Woohoo, looping!");
-            //     Thread.sleep(1000);
-            // } catch (InterruptedException e) {
-            //     e.printStackTrace();
-            // }
         }
         System.exit(-1);
     }
