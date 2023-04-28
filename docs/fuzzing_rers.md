@@ -659,7 +659,7 @@ AFL can reach quite some errors, but to compete in the 2020 challenge we expect 
 ________
 
 # Summary:
-Note: One can skip the next 4 steps and use the `JavaInstrumentation/RERS_AFL` folder instead, but make sure to adjust to the right folder directory in the below commands.
+Note: One can skip the next 4 steps and use the `JavaInstrumentation/src/main/resources/RERS_AFL` folder instead, but make sure to adjust to the right folder directory in the below commands.
 1. Go to the RERS folders (`/home/str/RERS/`) and replace for each ProblemX.c file: 
 	```C++
 	extern void __VERIFIER_error(int);

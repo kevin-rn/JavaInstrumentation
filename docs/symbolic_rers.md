@@ -325,7 +325,7 @@ ______
 # Summary:
 
 
-Note: One can skip the next two steps and use the `JAvaInstrumentation/RERS_KLEE` folders instead, but make sure to adjust to the right folder directory in the below commands.
+Note: One can skip the next two steps and use the `JAvaInstrumentation/src/main/resources/RERS_KLEE` folders instead, but make sure to adjust to the right folder directory in the below commands.
 1. Inside the RERS problem folder (/home/src/RERS/), replace for each ProblemX.c file:
     ```C
     extern void __VERIFIER_error(int);
