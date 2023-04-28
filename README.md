@@ -26,7 +26,9 @@ Instrumentation is implemented as follows:
 **NOTE:** This tool instruments only one Java file at a time.
 
 # Build and run the tool
-To build the project, make sure you have navigated to the root of this project and run the following Maven command:
+To build the project, one can follow the setup instructions that makes use of the Dev Container for Visual Studio Code (see `JavaInstrumentation/docs/aistr_devcontainer_setup_instructions.pdf`) or follow the next steps.
+
+First make sure you have navigated to the root of this project and run the following Maven command:
 
 `mvn clean package`
 
@@ -37,8 +39,21 @@ To instrument a given Java file, use the following command:
 Where `*PathToJavaFile*` is the path to the Java file to instrument, `*OutputPath*` is the file (file name and path) where you want to save the instrumented Java file. The `*TypeOfInstrumentation*` is the type of instrumentation that you want to do. You can choose between the following options: `line`, `branch`, `fuzzing`, `symbol` and `patching`
 Note that the flags `--file` and `--type` are required for instrumenting a Java file.
 
+# Running the Lab assignments
+To run the various assingments, follow the instructions laid out in their respective assignment pdf's inside the `JavaInstrumentation/assignments` folder. 
+These contain instructions and details on the lab assignments for the following:
+- Lab 1: Assignment on the Hill-Climb Fuzzer with optional instructions on running AFL.
+- Lab 2: Assignment on Symbolic Execution with optional instructions on running KLEE.
+- Lab 3: Assignment on Genetic Programming with optional instructions on running ASTOR.
+- Lab 4: Assignment on Active Learning with optional instructions on running LearnLib.
+- Final Lab: The optional instructions from previous labs put together.
+
+For the AFL and KLEE, the instructions (also referred to in the aforementioned pdf's) have been laid out in their markdown files inside the `JavaInstrumentation/docs`, namely `fuzzing_rers.md` and `symbolic_rers.md`.
+
 # Examples illustrating how to compile and run the instrumented files
-In this section, we present you an example for each lab on how to instrument RERS problem and how to run the instrumented Java file. For the sake of simplicity, we will use the directory structure of this repository to how a RERS problem is instrumented. These examples do assume that the project has already been built using Maven.
+In this section, we present you an example for each lab on how to instrument RERS problem and how to run the instrumented Java file.
+In case the Dev Container for VS Code is used, one can simply follow the instructions mentioned there for instrumenting and running the Problems.
+For the sake of simplicity, we will use the directory structure of this repository to how a RERS problem is instrumented. These examples do assume that the project has already been built using Maven.
 
 ## Lab 1 - Fuzzing
 Say we want to instrument `Problem1.java` of the RERS 2020 problem. We move the `Problem1.java` to the root directory to get the following structure:
