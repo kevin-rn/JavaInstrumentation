@@ -14,11 +14,23 @@ public class LearningLab {
     static ObservationTable observationTable;
     static EquivalenceChecker equivalenceChecker;
 
+    public static void runLearnLib() {
+        LearnLibRunner llr = new LearnLibRunner();
+        llr.start(3);
+        }
+
     static void run() {
+
+        runLearnLib();
+        int memb_quer_learn_lib = 0;
+        memb_quer_learn_lib = LearningTracker.query_count;
+        LearningTracker.query_count = 0;
+
+
         SystemUnderLearn sul = new RersSUL();
         observationTable = new ObservationTable(LearningTracker.inputSymbols, sul);
         //equivalenceChecker = new RandomWalkEquivalenceChecker(sul, LearningTracker.inputSymbols, 100, 1000);
-        equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 4, observationTable, observationTable);
+        equivalenceChecker = new WMethodEquivalenceChecker(sul, LearningTracker.inputSymbols, 3, observationTable, observationTable);
         observationTable.print();
         MealyMachine hypothesis = observationTable.generateHypothesis();
 
@@ -28,7 +40,7 @@ public class LearningLab {
         // Place here your code to learn a model of the RERS problem.
         // Implement the checks for consistent and closed in the observation table.
         // Use the observation table and the equivalence checker to implement the L* learning algorithm.
-        while (!isFinished && elapsedTime < 30000) {
+        while (!isFinished && elapsedTime < 80000 * 3) {
             hypothesis = observationTable.generateHypothesis();
             elapsedTime = System.currentTimeMillis() - startTime;
 
@@ -60,7 +72,7 @@ public class LearningLab {
 
         }
 
-        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + LearningTracker.query_count);
+        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + LearningTracker.query_count + "LEARNLIB MEMBERSHIP: " + memb_quer_learn_lib);
         // observationTable.print();
         hypothesis.writeToDot("hypothesis.dot");
         System.exit(-1);
