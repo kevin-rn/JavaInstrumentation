@@ -153,6 +153,11 @@ For Lab 3, it is almost identical to the steps shown for Lab 1. The only change 
 
 `java -cp target/aistr.jar nl.tudelft.instrumentation.Main --type=patching --file=Problem1.java > instrumented/Problem1.java`
 
+## Lab 4 - Model Learning
+For Lab 4, it is almost identical to the steps shown for Lab 1. The only change is to use the `learning` type when instrumenting the file:
+
+`java -cp target/aistr.jar nl.tudelft.instrumentation.Main --type=learning --file=Problem1.java > instrumented/Problem1.java`
+
 
 # Setting
 
