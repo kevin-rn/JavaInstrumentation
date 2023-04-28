@@ -22,8 +22,8 @@ public class LearningLab {
     static void run() {
 
         runLearnLib();
-        int memb_quer_learn_lib = 0;
-        memb_quer_learn_lib = LearningTracker.query_count;
+        int membQueryLearnLib = 0;
+        membQueryLearnLib = LearningTracker.query_count;
         LearningTracker.query_count = 0;
 
 
@@ -72,7 +72,7 @@ public class LearningLab {
 
         }
 
-        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + LearningTracker.query_count + "LEARNLIB MEMBERSHIP: " + memb_quer_learn_lib);
+        System.out.println("Total amount of states: " + hypothesis.getStates().length + ", membership queries: " + LearningTracker.query_count + " LEARNLIB MEMBERSHIP: " + membQueryLearnLib);
         // observationTable.print();
         hypothesis.writeToDot("hypothesis.dot");
         System.exit(-1);
